@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Metabolic Syndrome Dashboard — CST4245 CW1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5.20.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0B0E14;--card:#151923;--card-hover:#1C212D;--border:#252A3A;
+  --accent:#3B82F6;--accent-glow:rgba(59,130,246,0.15);
+  --accent2:#EF4444;--text:#F8FAFC;--muted:#94A3B8;
+  --green:#10B981;--orange:#F59E0B;--purple:#8B5CF6;
+  --radius:14px;--transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#33394F;border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#4A5370}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;line-height:1.6}
+.app{max-width:1600px;margin:0 auto}
+
+/* HEADER */
+header{
+  background:rgba(21,25,35,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);padding:20px 40px;
+  display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;
+}
+.logo{
+  width:44px;height:44px;
+  background:linear-gradient(135deg,var(--accent),#1E40AF);
+  border-radius:11px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:18px;color:#fff;flex-shrink:0;
+  box-shadow:0 4px 16px var(--accent-glow);
+}
+.header-text h1{font-size:1.25rem;font-weight:700;letter-spacing:-0.02em}
+.header-text p{font-size:0.8rem;color:var(--muted);margin-top:2px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.badge{
+  background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);
+  padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:600;
+  color:var(--accent);letter-spacing:0.06em;text-transform:uppercase;
+}
+.student-tag{
+  background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);
+  padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:500;
+  color:#A78BFA;
+}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:28px 40px}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px;position:relative;overflow:hidden;
+  transition:var(--transition);box-shadow:0 4px 24px rgba(0,0,0,0.2);
+}
+.stat-card:hover{transform:translateY(-3px);border-color:#3A415A;box-shadow:0 10px 32px rgba(0,0,0,0.35)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-card.down::before{background:linear-gradient(90deg,var(--green),#34D399)}
+.stat-card.up::before{background:linear-gradient(90deg,var(--accent2),#F87171)}
+.stat-card.up2::before{background:linear-gradient(90deg,var(--orange),#FCD34D)}
+.stat-card.info::before{background:linear-gradient(90deg,var(--accent),#60A5FA)}
+.stat-card::after{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:120px;height:120px;border-radius:50%;opacity:0.04;
+}
+.stat-card.down::after{background:var(--green)}
+.stat-card.up::after{background:var(--accent2)}
+.stat-card.up2::after{background:var(--orange)}
+.stat-card.info::after{background:var(--accent)}
+.stat-label{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:10px}
+.stat-value{font-size:2.2rem;font-weight:800;line-height:1;letter-spacing:-0.03em;margin-bottom:8px}
+.stat-change{font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:5px}
+.stat-change.pos{color:var(--accent2)}
+.stat-change.neg{color:var(--green)}
+.stat-sub{font-size:0.72rem;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+
+/* NAV */
+nav{display:flex;gap:6px;padding:0 40px 16px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{
+  background:rgba(255,255,255,0.03);border:1px solid var(--border);
+  padding:9px 18px;border-radius:8px;color:var(--muted);cursor:pointer;
+  font-size:0.85rem;font-weight:500;font-family:inherit;white-space:nowrap;
+  transition:var(--transition);
+}
+nav button:hover{background:var(--card-hover);color:var(--text);border-color:#3A415A}
+nav button.active{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  box-shadow:0 4px 14px rgba(59,130,246,0.35);
+}
+
+/* CONTENT */
+.content{padding:28px 40px 60px}
+.section{display:none;animation:fadeIn 0.35s ease-out forwards}
+.section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* CHART CARDS */
+.chart-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:28px;margin-bottom:20px;box-shadow:0 2px 20px rgba(0,0,0,0.12);
+}
+.chart-card:hover{border-color:#2E3347}
+.chart-title{font-size:1.1rem;font-weight:700;margin-bottom:6px;color:#fff}
+.chart-desc{font-size:0.85rem;color:var(--muted);margin-bottom:20px;line-height:1.55}
+.chart-wrap{display:flex;justify-content:center;align-items:center;min-height:220px;width:100%;overflow-x:auto}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* FINDING BOXES */
+.finding-box{
+  border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:8px;padding:16px 20px;margin-top:14px;
+  font-size:0.875rem;color:#CBD5E1;
+  background:rgba(59,130,246,0.04);
+}
+.finding-box strong{color:#fff;font-weight:600}
+.finding-box.red{border-left-color:var(--accent2);background:rgba(239,68,68,0.04)}
+.finding-box.green{border-left-color:var(--green);background:rgba(16,185,129,0.04)}
+.finding-box.orange{border-left-color:var(--orange);background:rgba(245,158,11,0.04)}
+.finding-box.purple{border-left-color:var(--purple);background:rgba(139,92,246,0.04)}
+
+/* META CARDS */
+.meta-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:24px}
+.meta-card{background:rgba(21,25,35,0.5);border:1px solid var(--border);border-radius:12px;padding:18px}
+.meta-card h4{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:10px}
+.tag{
+  display:inline-block;background:#1E2438;border-radius:6px;
+  padding:5px 10px;font-size:0.77rem;font-weight:500;margin:3px 3px 0 0;
+  color:#E2E8F0;border:1px solid rgba(255,255,255,0.05);
+}
+
+/* KEY INSIGHTS STRIP */
+.insight-strip{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;
+}
+.insight-card{
+  background:linear-gradient(135deg,rgba(21,25,35,0.9),rgba(30,35,50,0.9));
+  border:1px solid var(--border);border-radius:10px;padding:16px;
+  display:flex;align-items:flex-start;gap:12px;
+  transition:var(--transition);
+}
+.insight-card:hover{border-color:#3A415A;transform:translateY(-2px)}
+.insight-icon{
+  width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:18px;flex-shrink:0;
+}
+.insight-icon.green-bg{background:rgba(16,185,129,0.15)}
+.insight-icon.red-bg{background:rgba(239,68,68,0.15)}
+.insight-icon.blue-bg{background:rgba(59,130,246,0.15)}
+.insight-card p{font-size:0.82rem;color:#94A3B8;line-height:1.5}
+.insight-card strong{color:#fff;font-weight:600;font-size:0.9rem;display:block;margin-bottom:4px}
+
+/* DATA TABLE */
+.data-table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:0.85rem}
+thead tr{background:rgba(59,130,246,0.08);border-bottom:1px solid var(--border)}
+th{padding:12px 16px;text-align:left;font-weight:600;color:var(--muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(37,42,58,0.6);transition:background 0.15s}
+tbody tr:hover{background:rgba(255,255,255,0.02)}
+td{padding:11px 16px;color:#CBD5E1}
+td.country{font-weight:600;color:#fff}
+td.high{color:#F87171}
+td.low{color:#34D399}
+td.mid{color:#FCD34D}
+.region-badge{
+  display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.72rem;font-weight:600;
+}
+.rb-africa{background:rgba(239,68,68,0.15);color:#F87171}
+.rb-americas{background:rgba(59,130,246,0.15);color:#60A5FA}
+.rb-europe{background:rgba(16,185,129,0.15);color:#34D399}
+.rb-em{background:rgba(139,92,246,0.15);color:#A78BFA}
+.rb-sea{background:rgba(245,158,11,0.15);color:#FCD34D}
+.rb-wp{background:rgba(6,182,212,0.15);color:#22D3EE}
+
+/* TABLE CONTROLS */
+.table-controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.table-controls input{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:0.85rem;color:var(--text);font-family:inherit;
+  outline:none;transition:var(--transition);flex:1;min-width:200px;
+}
+.table-controls input:focus{border-color:var(--accent)}
+.table-controls select{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:0.85rem;color:var(--text);font-family:inherit;
+  outline:none;cursor:pointer;
+}
+.table-controls select option{background:#1C212D}
+.sort-btn{
+  background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);
+  color:var(--accent);padding:8px 14px;border-radius:8px;font-size:0.82rem;
+  cursor:pointer;font-family:inherit;font-weight:500;transition:var(--transition);
+  white-space:nowrap;
+}
+.sort-btn:hover{background:rgba(59,130,246,0.2)}
+.sort-btn.active-sort{background:var(--accent);color:#fff}
+
+/* ABOUT GRID */
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:16px}
+.about-section h4{
+  color:#fff;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.06em;
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.about-section h4 svg{flex-shrink:0}
+.about-section p{font-size:0.88rem;line-height:1.7;color:var(--muted)}
+.student-info-card{
+  background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(139,92,246,0.06));
+  border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:20px;
+  grid-column:1/-1;display:flex;align-items:center;gap:24px;
+}
+.student-avatar{
+  width:52px;height:52px;border-radius:12px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:800;color:#fff;flex-shrink:0;
+}
+.student-info h3{font-size:1rem;font-weight:700;color:#fff}
+.student-info p{font-size:0.83rem;color:var(--muted);margin-top:2px}
+.student-meta{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap}
+.student-meta span{font-size:0.78rem;color:#A78BFA;background:rgba(139,92,246,0.1);padding:3px 10px;border-radius:5px;border:1px solid rgba(139,92,246,0.2)}
+
+/* TWO COL */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* RESPONSIVE */
+@media(max-width:1200px){.stats-row{grid-template-columns:1fr 1fr}.insight-strip{grid-template-columns:1fr}}
+@media(max-width:900px){
+  .chart-grid,.two-col,.meta-row,.about-grid{grid-template-columns:1fr}
+  header,.content,.stats-row,nav{padding-left:16px;padding-right:16px}
+  header{flex-wrap:wrap}
+  .header-right{width:100%}
+  .insight-strip{grid-template-columns:1fr}
+  .student-info-card{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="logo">MS</div>
+  <div class="header-text">
+    <h1>Global Metabolic Syndrome Dashboard</h1>
+    <p>CST4245 CW1 — Hypertension · Obesity · Diabetes · 200 Countries · 1980–2014</p>
+  </div>
+  <div class="header-right">
+    <span class="student-tag">M01090463</span>
+    <span class="badge">NCD-RisC · Altair</span>
+  </div>
+</header>
+
+<div class="stats-row">
+  <div class="stat-card down">
+    <div class="stat-label">Hypertension Global Avg</div>
+    <div class="stat-value" style="color:var(--green)">24.4%</div>
+    <div class="stat-change neg">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+      −5.65 pp since 1980
+    </div>
+    <div class="stat-sub">Men: 26.5% · Women: 22.3%</div>
+  </div>
+  <div class="stat-card up">
+    <div class="stat-label">Obesity Global Avg</div>
+    <div class="stat-value" style="color:var(--accent2)">20.3%</div>
+    <div class="stat-change pos">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      +11.96 pp since 1980
+    </div>
+    <div class="stat-sub">Men: 16.7% · Women: 24.0%</div>
+  </div>
+  <div class="stat-card up2">
+    <div class="stat-label">Diabetes Global Avg</div>
+    <div class="stat-value" style="color:var(--orange)">10.1%</div>
+    <div class="stat-change pos">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      +4.77 pp since 1980
+    </div>
+    <div class="stat-sub">Men: 10.1% · Women: 10.0%</div>
+  </div>
+  <div class="stat-card info">
+    <div class="stat-label">UAE Diabetes 2014</div>
+    <div class="stat-value" style="color:var(--accent)">15.2%</div>
+    <div class="stat-change pos">5.1 pp above global avg</div>
+    <div class="stat-sub">Obesity (F): 41.4% · (M): 27.0%</div>
+  </div>
+</div>
+
+<nav>
+  <button class="active" onclick="showTab('overview',this)">📊 Overview</button>
+  <button onclick="showTab('trends',this)">📈 Global Trends</button>
+  <button onclick="showTab('gender',this)">⚖️ Gender Gap</button>
+  <button onclick="showTab('obesity',this)">🍔 Obesity Rankings</button>
+  <button onclick="showTab('scatter',this)">🔵 Obesity–Diabetes</button>
+  <button onclick="showTab('heatmap',this)">🟥 Regional Heatmap</button>
+  <button onclick="showTab('map',this)">🗺️ World Map</button>
+  <button onclick="showTab('explorer',this)">🔍 Data Explorer</button>
+  <button onclick="showTab('about',this)">ℹ️ About</button>
+</nav>
+
+<div class="content">
+
+  <!-- OVERVIEW -->
+  <div id="tab-overview" class="section active">
+    <div class="insight-strip">
+      <div class="insight-card">
+        <div class="insight-icon green-bg">📉</div>
+        <div><strong>Hypertension — Going Down</strong><p>The one good news story: global mean BP fell 5.65pp from 1980–2014, driven by antihypertensive medication access and salt-reduction campaigns in high-income countries.</p></div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon red-bg">⚠️</div>
+        <div><strong>Obesity — Doubled in 35 Years</strong><p>Global obesity more than doubled. Women consistently higher than men. Pacific Island nations at 59–65% — the majority of their adult populations are clinically obese.</p></div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon blue-bg">🇦🇪</div>
+        <div><strong>UAE in the High-Risk Cluster</strong><p>Female obesity at 41.4%, diabetes at 15.2%. Both place the UAE firmly in the Eastern Mediterranean cluster — higher diabetes per unit of obesity than the global trend predicts.</p></div>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="meta-card">
+        <h4>Dataset</h4>
+        <span class="tag">200 Countries</span><span class="tag">1980–2014</span>
+        <span class="tag">3 Conditions</span><span class="tag">14,000 rows merged</span>
+      </div>
+      <div class="meta-card">
+        <h4>Conditions Analysed</h4>
+        <span class="tag" style="background:rgba(59,130,246,0.15);color:#93C5FD;border-color:rgba(59,130,246,0.3)">Hypertension (BP ≥ 140)</span>
+        <span class="tag" style="background:rgba(239,68,68,0.15);color:#FCA5A5;border-color:rgba(239,68,68,0.3)">Obesity (BMI ≥ 30)</span>
+        <span class="tag" style="background:rgba(245,158,11,0.15);color:#FCD34D;border-color:rgba(245,158,11,0.3)">Diabetes (age-std)</span>
+      </div>
+      <div class="meta-card">
+        <h4>WHO Regions</h4>
+        <span class="tag">Africa</span><span class="tag">Americas</span><span class="tag">Europe</span>
+        <span class="tag">E. Mediterranean</span><span class="tag">SE Asia</span><span class="tag">W. Pacific</span>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Global Trends: All Three Conditions</div>
+        <div class="chart-desc">Mean prevalence globally 1980–2014 by sex. Independent y-axis per condition.</div>
+        <div class="chart-wrap" id="mini-chart1"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Hypertension by Region &amp; Decade</div>
+        <div class="chart-desc">Africa stagnant. Europe and Americas improved most. South-East Asia slightly worsened.</div>
+        <div class="chart-wrap" id="mini-chart5"></div>
+      </div>
+    </div>
+    <div class="finding-box">
+      <strong>Key Takeaway:</strong> The three conditions are moving in opposite directions — hypertension falling, obesity and diabetes rising. This is not a uniformly worsening picture; it reflects different mechanisms requiring different policy responses.
+    </div>
+  </div>
+
+  <!-- TRENDS -->
+  <div id="tab-trends" class="section">
+    <div class="chart-card">
+      <div class="chart-title">Chart 1 — Global Prevalence Trends: Hypertension, Obesity &amp; Diabetes (1980–2014)</div>
+      <div class="chart-desc">Mean prevalence across 200 countries per year, split by sex. Each panel has an independent y-axis. Blue solid = Men, Red dashed = Women. Source: NCD-RisC (2016a; 2016b; 2017).</div>
+      <div class="chart-wrap" id="chart1-full"></div>
+    </div>
+    <div class="two-col">
+      <div class="finding-box green"><strong>Hypertension ↓</strong> Men 31.9%→26.5%, Women 28.2%→22.3% from 1980 to 2014. Men consistently higher throughout — the opposite of the obesity pattern.</div>
+      <div class="finding-box red"><strong>Obesity ↑↑</strong> Women 11.2%→24.0%, Men 5.5%→16.7%. The sex gap widened over time. Female excess concentrated in Pacific Island and Gulf populations.</div>
+    </div>
+    <div class="finding-box orange" style="margin-top:14px"><strong>Diabetes ↑</strong> Near-equal for both sexes. Women marginally higher 1980–2005, then men slightly ahead. Both roughly doubled from ~5% to ~10%.</div>
+  </div>
+
+  <!-- GENDER -->
+  <div id="tab-gender" class="section">
+    <div class="chart-card">
+      <div class="chart-title">Chart 2 — Hypertension Gender Gap by Region (Men − Women, %)</div>
+      <div class="chart-desc">Regional mean of Male BP minus Female BP prevalence per year. Below zero = women higher. Dashed line at zero = no gender difference. Source: NCD-RisC (2017); author's own calculation.</div>
+      <div class="chart-wrap" id="chart2-full"></div>
+    </div>
+    <div class="two-col">
+      <div class="finding-box red"><strong>Europe — most negative:</strong> Women have 7–9pp higher hypertension than men throughout. Iceland, Estonia, Latvia and Czech Republic each exceed −13pp by 2014. Related to dietary salt patterns and detection asymmetry in post-Soviet health systems.</div>
+      <div class="finding-box green"><strong>Africa — only region that reversed:</strong> Started at −2pp (women higher) in 1980, crossed to +0.24pp (men slightly higher) by 2014. Rising male cardiovascular risk and improving female treatment access both contributed.</div>
+    </div>
+    <div class="finding-box orange" style="margin-top:14px"><strong>Eastern Mediterranean — crossed the line:</strong> Started at +0.37pp (men higher) in 1980, then crossed to women-higher around 1997. Sharp rise in female obesity in Gulf countries from the 1990s onward pushed women's cardiovascular risk upward.</div>
+  </div>
+
+  <!-- OBESITY -->
+  <div id="tab-obesity" class="section">
+    <div class="chart-card">
+      <div class="chart-title">Chart 3 — Obesity by Country 2014: Top &amp; Bottom 15</div>
+      <div class="chart-desc">Stacked bars — blue base = Men's rate, red stack = Women's rate added on top. X-axis shows combined male+female total. Countries sorted by average prevalence. Source: NCD-RisC (2016a).</div>
+      <div class="chart-wrap" id="chart3-full"></div>
+    </div>
+    <div class="two-col">
+      <div class="finding-box red"><strong>Top 15 — Pacific dominance:</strong> Nauru (59% M, 64% F), American Samoa, Cook Islands, Palau. Kuwait and Qatar represent the Gulf cluster. Nauru's rates mean a majority of adults are clinically obese.</div>
+      <div class="finding-box green"><strong>Bottom 15 — South/SE Asia + Africa:</strong> Vietnam (1.4% M, 2.4% F) sits at the very bottom. Japan is the only high-income country here — its food culture maintains low obesity despite high GDP.</div>
+    </div>
+    <div class="finding-box" style="margin-top:14px"><strong>Design note:</strong> The x-axis scale difference between the two panels is jarring — the bottom 15 bars barely reach 10% while top 15 combined totals exceed 120%. This is a known limitation of the stacked design chosen to emphasise country-level burden over the sex comparison.</div>
+  </div>
+
+  <!-- SCATTER -->
+  <div id="tab-scatter" class="section">
+    <div class="chart-card">
+      <div class="chart-title">Chart 4 — Obesity vs Diabetes by Country (2014)</div>
+      <div class="chart-desc">Each point = one country. X = mean obesity (both sexes avg), Y = mean diabetes. Coloured by WHO region. Dashed line = linear regression fit. UAE labelled in purple. Sources: NCD-RisC (2016a; 2016b).</div>
+      <div class="chart-wrap" id="chart4-full"></div>
+    </div>
+    <div class="two-col">
+      <div class="finding-box purple"><strong>Eastern Mediterranean above the line:</strong> Higher diabetes per unit of obesity than the regression predicts. Afghanistan: 5% obesity, 12% diabetes. Pakistan: 8% obesity, 12% diabetes. South Asian and Arab populations develop diabetes at lower BMI thresholds (Misra &amp; Khurana, 2011).</div>
+      <div class="finding-box green"><strong>East Asian outliers below-left:</strong> Japan, South Korea, Vietnam — low obesity AND lower diabetes than comparable income-level countries. China is notably further right than Japan/Korea, reflecting rapid urbanisation-driven diabetes growth since the 1990s.</div>
+    </div>
+    <div class="finding-box" style="margin-top:14px"><strong>UAE at (34%, 15.2%):</strong> Sits above the regression line, consistent with the Eastern Mediterranean cluster. What the dataset can't separate is how much of this is the large South Asian expat population — national averages mask that demographic split entirely.</div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div id="tab-heatmap" class="section">
+    <div class="chart-card">
+      <div class="chart-title">Chart 5 — Mean Hypertension Prevalence by Region &amp; Decade (%)</div>
+      <div class="chart-desc">Mean BP averaged across both sexes and all countries per region per decade. Darker red = higher prevalence. Numbers inside cells. Source: NCD-RisC (2017); author's own calculation.</div>
+      <div class="chart-wrap" id="chart5-full"></div>
+    </div>
+    <div class="two-col">
+      <div class="finding-box red"><strong>Africa — flat line:</strong> 28.6%–29.6% across all four decades. The only region that failed to improve. Low awareness, patchy screening, expensive medication, weak referral pathways (Mills et al., 2016).</div>
+      <div class="finding-box green"><strong>Europe &amp; Americas — biggest improvers:</strong> Europe 34.3%→25.1%, Americas 28.0%→21.7%. South-East Asia the only region to worsen: 22.8%→24.7%, driven by urbanisation-related cardiovascular risk.</div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="tab-map" class="section">
+    <div class="chart-card">
+      <div class="chart-title">Chart 6 — Global Diabetes Prevalence by Country (2014)</div>
+      <div class="chart-desc">Both sexes mean diabetes prevalence. Orange-red scale — darker = higher. Grey = no boundary match in topojson. Hover for country values. Source: NCD-RisC (2016b).</div>
+      <div class="chart-wrap" id="chart6-full"></div>
+    </div>
+    <div class="two-col">
+      <div class="finding-box red"><strong>Middle East — darkest cluster:</strong> Egypt, Iraq, Jordan, Saudi Arabia, Kuwait, Qatar, Libya, UAE all above 15%. A geographically contiguous high-risk zone — visible in a way no bar chart could show.</div>
+      <div class="finding-box green"><strong>Sub-Saharan Africa — lightest:</strong> Mostly below 8%. Reflects lower obesity and younger population age structure. NCD-RisC (2016b) warns this will change substantially as African populations age.</div>
+    </div>
+    <div class="finding-box orange" style="margin-top:14px"><strong>East Asia gradient:</strong> China occupies a noticeably different colour band from Japan and South Korea despite being the same region — the diabetes gradient across East Asia is steep enough to be visible at the map level.</div>
+  </div>
+
+  <!-- DATA EXPLORER -->
+  <div id="tab-explorer" class="section">
+    <div class="chart-card">
+      <div class="chart-title">🔍 Country Data Explorer — Diabetes Prevalence 2014</div>
+      <div class="chart-desc">All 200 countries sorted by diabetes prevalence. Filter, search, and sort interactively. Data: NCD-RisC (2016b), both sexes mean.</div>
+      <div class="table-controls">
+        <input type="text" id="search-input" placeholder="Search country..." oninput="filterTable()">
+        <select id="region-filter" onchange="filterTable()">
+          <option value="">All Regions</option>
+          <option value="Africa">Africa</option>
+          <option value="Americas">Americas</option>
+          <option value="Europe">Europe</option>
+          <option value="Eastern Mediterranean">Eastern Mediterranean</option>
+          <option value="South-East Asia">South-East Asia</option>
+          <option value="Western Pacific">Western Pacific</option>
+        </select>
+        <button class="sort-btn active-sort" onclick="sortTable('diabetes')">Sort: Diabetes ↕</button>
+        <button class="sort-btn" onclick="sortTable('obesity')">Sort: Obesity ↕</button>
+      </div>
+      <div class="data-table-wrap">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Country</th>
+              <th>Region</th>
+              <th>Diabetes (%)</th>
+              <th>Obesity (%)</th>
+              <th>Obesity — Women (%)</th>
+              <th>Obesity — Men (%)</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div id="tab-about" class="section">
+    <div class="chart-card">
+      <div class="chart-title">About This Dashboard</div>
+      <div class="chart-desc">Academic coursework submission for CST4245 — Data Visualisation, Computer Vision and Imaging. Component 1 Summative.</div>
+      <div class="student-info-card">
+        <div class="student-avatar">MT</div>
+        <div>
+          <div class="student-info">
+            <h3>Mohammad Talha Mohammad Salim Shaikh</h3>
+            <p>CST4245 — Data Visualisation, Computer Vision and Imaging</p>
+            <div class="student-meta">
+              <span>M01090463</span>
+              <span><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b6c2d7daded7c2d7daded7878f8187f6d1dbd7dfda98d5d9db">[email&#160;protected]</a></span>
+              <span>+971 54 786 4418</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="about-grid">
+        <div class="about-section">
+          <h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Dataset
+          </h4>
+          <p>NCD Risk Factor Collaboration (NCD-RisC). Three sheets: raised blood pressure, BMI/obesity, and age-standardised diabetes prevalence. 200 countries, 1975–2016. Merged on 1980–2014 overlap: 14,000 rows, zero nulls.</p>
+        </div>
+        <div class="about-section">
+          <h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Technical Stack
+          </h4>
+          <span class="tag">Python 3</span><span class="tag">Pandas</span>
+          <span class="tag">Altair / Vega-Lite 5</span><span class="tag">pycountry</span>
+          <span class="tag">openpyxl</span><span class="tag">Vercel</span>
+        </div>
+        <div class="about-section">
+          <h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            Data Transformations
+          </h4>
+          <p>Proportions × 100 → percentages. WHO region classification (manual dict). Year restriction to 1980–2014. Gender gap feature: Men − Women per country/year. All documented in cw1_cleaned_dataset.xlsx.</p>
+        </div>
+        <div class="about-section">
+          <h4>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            References
+          </h4>
+          <p>Munzner (2014). NCD-RisC (2016a, 2016b, 2017) The Lancet. Mills et al. (2016) Circulation. Misra &amp; Khurana (2011) Int J Obesity. Ng et al. (2014) The Lancet. Tsugane &amp; Sawada (2014). Popkin et al. (2012).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .content -->
+</div><!-- end .app -->
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+const CHART_SPECS = {"chart1":{"spec":{"config":{"view":{"continuousWidth":300,"continuousHeight":300}},"data":{"name":"data-bba3dc89ff833fd37e8b9ef4ed538dca"},"mark":{"type":"line","point":false,"strokeWidth":2.5},"encoding":{"color":{"field":"Sex","scale":{"domain":["Men","Women"],"range":["#4E79A7","#E15759"]},"type":"nominal"},"facet":{"columns":3,"field":"Condition","type":"nominal"},"strokeDash":{"field":"Sex","type":"nominal"},"tooltip":[{"field":"Year","type":"quantitative"},{"field":"Sex","type":"nominal"},{"field":"Condition","type":"nominal"},{"field":"Prevalence","format":".2f","type":"quantitative"}],"x":{"axis":{"labelAngle":-45,"title":"Year"},"field":"Year","type":"ordinal"},"y":{"field":"Prevalence","title":"Mean Prevalence (%)","type":"quantitative"}},"height":200,"resolve":{"scale":{"y":"independent"}},"title":"Global Prevalence Trends: Hypertension, Obesity & Diabetes (1980\u20132014)","width":250,"$schema":"https://vega.github.io/schema/vega-lite/v5.20.1.json","datasets":{"data-bba3dc89ff833fd37e8b9ef4ed538dca":[{"Year":1980,"Sex":"Men","Prevalence":31.93125,"Condition":"Hypertension"},{"Year":1980,"Sex":"Women","Prevalence":28.19625,"Condition":"Hypertension"},{"Year":1981,"Sex":"Men","Prevalence":31.863899999999997,"Condition":"Hypertension"},{"Year":1981,"Sex":"Women","Prevalence":28.1077,"Condition":"Hypertension"},{"Year":1982,"Sex":"Men","Prevalence":31.78715,"Condition":"Hypertension"},{"Year":1982,"Sex":"Women","Prevalence":28.011750000000003,"Condition":"Hypertension"},{"Year":1983,"Sex":"Men","Prevalence":31.70075,"Condition":"Hypertension"},{"Year":1983,"Sex":"Women","Prevalence":27.911350000000002,"Condition":"Hypertension"},{"Year":1984,"Sex":"Men","Prevalence":31.6058,"Condition":"Hypertension"},{"Year":1984,"Sex":"Women","Prevalence":27.80475,"Condition":"Hypertension"},{"Year":1985,"Sex":"Men","Prevalence":31.50485,"Condition":"Hypertension"},{"Year":1985,"Sex":"Women","Prevalence":27.695549999999997,"Condition":"Hypertension"},{"Year":1986,"Sex":"Men","Prevalence":31.393150000000002,"Condition":"Hypertension"},{"Year":1986,"Sex":"Women","Prevalence":27.5804,"Condition":"Hypertension"},{"Year":1987,"Sex":"Men","Prevalence":31.2744,"Condition":"Hypertension"},{"Year":1987,"Sex":"Women","Prevalence":27.4615,"Condition":"Hypertension"},{"Year":1988,"Sex":"Men","Prevalence":31.148400000000002,"Condition":"Hypertension"},{"Year":1988,"Sex":"Women","Prevalence":27.33585,"Condition":"Hypertension"},{"Year":1989,"Sex":"Men","Prevalence":31.0137,"Condition":"Hypertension"},{"Year":1989,"Sex":"Women","Prevalence":27.20535,"Condition":"Hypertension"},{"Year":1990,"Sex":"Men","Prevalence":30.8725,"Condition":"Hypertension"},{"Year":1990,"Sex":"Women","Prevalence":27.0665,"Condition":"Hypertension"},{"Year":1991,"Sex":"Men","Prevalence":30.718200000000003,"Condition":"Hypertension"},{"Year":1991,"Sex":"Women","Prevalence":26.91775,"Condition":"Hypertension"},{"Year":1992,"Sex":"Men","Prevalence":30.55705,"Condition":"Hypertension"},{"Year":1992,"Sex":"Women","Prevalence":26.7586,"Condition":"Hypertension"},{"Year":1993,"Sex":"Men","Prevalence":30.38955,"Condition":"Hypertension"},{"Year":1993,"Sex":"Women","Prevalence":26.5906,"Condition":"Hypertension"},{"Year":1994,"Sex":"Men","Prevalence":30.215149999999998,"Condition":"Hypertension"},{"Year":1994,"Sex":"Women","Prevalence":26.41255,"Condition":"Hypertension"},{"Year":1995,"Sex":"Men","Prevalence":30.0387,"Condition":"Hypertension"},{"Year":1995,"Sex":"Women","Prevalence":26.22755,"Condition":"Hypertension"},{"Year":1996,"Sex":"Men","Prevalence":29.85765,"Condition":"Hypertension"},{"Year":1996,"Sex":"Women","Prevalence":26.0339,"Condition":"Hypertension"},{"Year":1997,"Sex":"Men","Prevalence":29.6745,"Condition":"Hypertension"},{"Year":1997,"Sex":"Women","Prevalence":25.83495,"Condition":"Hypertension"},{"Year":1998,"Sex":"Men","Prevalence":29.4917,"Condition":"Hypertension"},{"Year":1998,"Sex":"Women","Prevalence":25.63125,"Condition":"Hypertension"},{"Year":1999,"Sex":"Men","Prevalence":29.30715,"Condition":"Hypertension"},{"Year":1999,"Sex":"Women","Prevalence":25.4243,"Condition":"Hypertension"},{"Year":2000,"Sex":"Men","Prevalence":29.12215,"Condition":"Hypertension"},{"Year":2000,"Sex":"Women","Prevalence":25.2137,"Condition":"Hypertension"},{"Year":2001,"Sex":"Men","Prevalence":28.9371,"Condition":"Hypertension"},{"Year":2001,"Sex":"Women","Prevalence":25.00105,"Condition":"Hypertension"},{"Year":2002,"Sex":"Men","Prevalence":28.75195,"Condition":"Hypertension"},{"Year":2002,"Sex":"Women","Prevalence":24.7875,"Condition":"Hypertension"},{"Year":2003,"Sex":"Men","Prevalence":28.56495,"Condition":"Hypertension"},{"Year":2003,"Sex":"Women","Prevalence":24.5726,"Condition":"Hypertension"},{"Year":2004,"Sex":"Men","Prevalence":28.3771,"Condition":"Hypertension"},{"Year":2004,"Sex":"Women","Prevalence":24.35755,"Condition":"Hypertension"},{"Year":2005,"Sex":"Men","Prevalence":28.1888,"Condition":"Hypertension"},{"Year":2005,"Sex":"Women","Prevalence":24.1437,"Condition":"Hypertension"},{"Year":2006,"Sex":"Men","Prevalence":27.99915,"Condition":"Hypertension"},{"Year":2006,"Sex":"Women","Prevalence":23.93095,"Condition":"Hypertension"},{"Year":2007,"Sex":"Men","Prevalence":27.81035,"Condition":"Hypertension"},{"Year":2007,"Sex":"Women","Prevalence":23.719450000000002,"Condition":"Hypertension"},{"Year":2008,"Sex":"Men","Prevalence":27.6213,"Condition":"Hypertension"},{"Year":2008,"Sex":"Women","Prevalence":23.512150000000002,"Condition":"Hypertension"},{"Year":2009,"Sex":"Men","Prevalence":27.4304,"Condition":"Hypertension"},{"Year":2009,"Sex":"Women","Prevalence":23.30705,"Condition":"Hypertension"},{"Year":2010,"Sex":"Men","Prevalence":27.23875,"Condition":"Hypertension"},{"Year":2010,"Sex":"Women","Prevalence":23.1061,"Condition":"Hypertension"},{"Year":2011,"Sex":"Men","Prevalence":27.046799999999998,"Condition":"Hypertension"},{"Year":2011,"Sex":"Women","Prevalence":22.9086,"Condition":"Hypertension"},{"Year":2012,"Sex":"Men","Prevalence":26.858249999999998,"Condition":"Hypertension"},{"Year":2012,"Sex":"Women","Prevalence":22.7142,"Condition":"Hypertension"},{"Year":2013,"Sex":"Men","Prevalence":26.672199999999997,"Condition":"Hypertension"},{"Year":2013,"Sex":"Women","Prevalence":22.5217,"Condition":"Hypertension"},{"Year":2014,"Sex":"Men","Prevalence":26.48815,"Condition":"Hypertension"},{"Year":2014,"Sex":"Women","Prevalence":22.3319,"Condition":"Hypertension"},{"Year":1980,"Sex":"Men","Prevalence":5.5394499999999995,"Condition":"Obesity"},{"Year":1980,"Sex":"Women","Prevalence":11.228,"Condition":"Obesity"},{"Year":1981,"Sex":"Men","Prevalence":5.760149999999999,"Condition":"Obesity"},{"Year":1981,"Sex":"Women","Prevalence":11.542300000000001,"Condition":"Obesity"},{"Year":1982,"Sex":"Men","Prevalence":5.9879999999999995,"Condition":"Obesity"},{"Year":1982,"Sex":"Women","Prevalence":11.86105,"Condition":"Obesity"},{"Year":1983,"Sex":"Men","Prevalence":6.22375,"Condition":"Obesity"},{"Year":1983,"Sex":"Women","Prevalence":12.18605,"Condition":"Obesity"},{"Year":1984,"Sex":"Men","Prevalence":6.46645,"Condition":"Obesity"},{"Year":1984,"Sex":"Women","Prevalence":12.51565,"Condition":"Obesity"},{"Year":1985,"Sex":"Men","Prevalence":6.71755,"Condition":"Obesity"},{"Year":1985,"Sex":"Women","Prevalence":12.8505,"Condition":"Obesity"},{"Year":1986,"Sex":"Men","Prevalence":6.9742999999999995,"Condition":"Obesity"},{"Year":1986,"Sex":"Women","Prevalence":13.189449999999999,"Condition":"Obesity"},{"Year":1987,"Sex":"Men","Prevalence":7.238149999999999,"Condition":"Obesity"},{"Year":1987,"Sex":"Women","Prevalence":13.5318,"Condition":"Obesity"},{"Year":1988,"Sex":"Men","Prevalence":7.5081500000000005,"Condition":"Obesity"},{"Year":1988,"Sex":"Women","Prevalence":13.8775,"Condition":"Obesity"},{"Year":1989,"Sex":"Men","Prevalence":7.7852,"Condition":"Obesity"},{"Year":1989,"Sex":"Women","Prevalence":14.228250000000001,"Condition":"Obesity"},{"Year":1990,"Sex":"Men","Prevalence":8.06915,"Condition":"Obesity"},{"Year":1990,"Sex":"Women","Prevalence":14.5832,"Condition":"Obesity"},{"Year":1991,"Sex":"Men","Prevalence":8.3576,"Condition":"Obesity"},{"Year":1991,"Sex":"Women","Prevalence":14.937249999999999,"Condition":"Obesity"},{"Year":1992,"Sex":"Men","Prevalence":8.64925,"Condition":"Obesity"},{"Year":1992,"Sex":"Women","Prevalence":15.290799999999999,"Condition":"Obesity"},{"Year":1993,"Sex":"Men","Prevalence":8.94505,"Condition":"Obesity"},{"Year":1993,"Sex":"Women","Prevalence":15.64415,"Condition":"Obesity"},{"Year":1994,"Sex":"Men","Prevalence":9.246,"Condition":"Obesity"},{"Year":1994,"Sex":"Women","Prevalence":15.9991,"Condition":"Obesity"},{"Year":1995,"Sex":"Men","Prevalence":9.55175,"Condition":"Obesity"},{"Year":1995,"Sex":"Women","Prevalence":16.35595,"Condition":"Obesity"},{"Year":1996,"Sex":"Men","Prevalence":9.862400000000001,"Condition":"Obesity"},{"Year":1996,"Sex":"Women","Prevalence":16.7146,"Condition":"Obesity"},{"Year":1997,"Sex":"Men","Prevalence":10.17895,"Condition":"Obesity"},{"Year":1997,"Sex":"Women","Prevalence":17.0759,"Condition":"Obesity"},{"Year":1998,"Sex":"Men","Prevalence":10.50095,"Condition":"Obesity"},{"Year":1998,"Sex":"Women","Prevalence":17.4405,"Condition":"Obesity"},{"Year":1999,"Sex":"Men","Prevalence":10.829649999999999,"Condition":"Obesity"},{"Year":1999,"Sex":"Women","Prevalence":17.809749999999998,"Condition":"Obesity"},{"Year":2000,"Sex":"Men","Prevalence":11.163900000000002,"Condition":"Obesity"},{"Year":2000,"Sex":"Women","Prevalence":18.1822,"Condition":"Obesity"},{"Year":2001,"Sex":"Men","Prevalence":11.507100000000001,"Condition":"Obesity"},{"Year":2001,"Sex":"Women","Prevalence":18.5608,"Condition":"Obesity"},{"Year":2002,"Sex":"Men","Prevalence":11.857449999999998,"Condition":"Obesity"},{"Year":2002,"Sex":"Women","Prevalence":18.94485,"Condition":"Obesity"},{"Year":2003,"Sex":"Men","Prevalence":12.216050000000001,"Condition":"Obesity"},{"Year":2003,"Sex":"Women","Prevalence":19.3342,"Condition":"Obesity"},{"Year":2004,"Sex":"Men","Prevalence":12.58285,"Condition":"Obesity"},{"Year":2004,"Sex":"Women","Prevalence":19.7288,"Condition":"Obesity"},{"Year":2005,"Sex":"Men","Prevalence":12.95745,"Condition":"Obesity"},{"Year":2005,"Sex":"Women","Prevalence":20.12905,"Condition":"Obesity"},{"Year":2006,"Sex":"Men","Prevalence":13.339749999999999,"Condition":"Obesity"},{"Year":2006,"Sex":"Women","Prevalence":20.53355,"Condition":"Obesity"},{"Year":2007,"Sex":"Men","Prevalence":13.73065,"Condition":"Obesity"},{"Year":2007,"Sex":"Women","Prevalence":20.9444,"Condition":"Obesity"},{"Year":2008,"Sex":"Men","Prevalence":14.129349999999999,"Condition":"Obesity"},{"Year":2008,"Sex":"Women","Prevalence":21.359900000000003,"Condition":"Obesity"},{"Year":2009,"Sex":"Men","Prevalence":14.5373,"Condition":"Obesity"},{"Year":2009,"Sex":"Women","Prevalence":21.78085,"Condition":"Obesity"},{"Year":2010,"Sex":"Men","Prevalence":14.95345,"Condition":"Obesity"},{"Year":2010,"Sex":"Women","Prevalence":22.206300000000002,"Condition":"Obesity"},{"Year":2011,"Sex":"Men","Prevalence":15.37845,"Condition":"Obesity"},{"Year":2011,"Sex":"Women","Prevalence":22.63755,"Condition":"Obesity"},{"Year":2012,"Sex":"Men","Prevalence":15.8134,"Condition":"Obesity"},{"Year":2012,"Sex":"Women","Prevalence":23.074,"Condition":"Obesity"},{"Year":2013,"Sex":"Men","Prevalence":16.2582,"Condition":"Obesity"},{"Year":2013,"Sex":"Women","Prevalence":23.51695,"Condition":"Obesity"},{"Year":2014,"Sex":"Men","Prevalence":16.71455,"Condition":"Obesity"},{"Year":2014,"Sex":"Women","Prevalence":23.965500000000002,"Condition":"Obesity"},{"Year":1980,"Sex":"Men","Prevalence":4.958,"Condition":"Diabetes"},{"Year":1980,"Sex":"Women","Prevalence":5.6331500000000005,"Condition":"Diabetes"},{"Year":1981,"Sex":"Men","Prevalence":5.06645,"Condition":"Diabetes"},{"Year":1981,"Sex":"Women","Prevalence":5.71345,"Condition":"Diabetes"},{"Year":1982,"Sex":"Men","Prevalence":5.1800999999999995,"Condition":"Diabetes"},{"Year":1982,"Sex":"Women","Prevalence":5.7988,"Condition":"Diabetes"},{"Year":1983,"Sex":"Men","Prevalence":5.2987,"Condition":"Diabetes"},{"Year":1983,"Sex":"Women","Prevalence":5.887849999999999,"Condition":"Diabetes"},{"Year":1984,"Sex":"Men","Prevalence":5.42455,"Condition":"Diabetes"},{"Year":1984,"Sex":"Women","Prevalence":5.9841999999999995,"Condition":"Diabetes"},{"Year":1985,"Sex":"Men","Prevalence":5.5559,"Condition":"Diabetes"},{"Year":1985,"Sex":"Women","Prevalence":6.0844000000000005,"Condition":"Diabetes"},{"Year":1986,"Sex":"Men","Prevalence":5.69125,"Condition":"Diabetes"},{"Year":1986,"Sex":"Women","Prevalence":6.19005,"Condition":"Diabetes"},{"Year":1987,"Sex":"Men","Prevalence":5.83165,"Condition":"Diabetes"},{"Year":1987,"Sex":"Women","Prevalence":6.2999,"Condition":"Diabetes"},{"Year":1988,"Sex":"Men","Prevalence":5.97525,"Condition":"Diabetes"},{"Year":1988,"Sex":"Women","Prevalence":6.4138,"Condition":"Diabetes"},{"Year":1989,"Sex":"Men","Prevalence":6.1229,"Condition":"Diabetes"},{"Year":1989,"Sex":"Women","Prevalence":6.5313,"Condition":"Diabetes"},{"Year":1990,"Sex":"Men","Prevalence":6.2747,"Condition":"Diabetes"},{"Year":1990,"Sex":"Women","Prevalence":6.6535,"Condition":"Diabetes"},{"Year":1991,"Sex":"Men","Prevalence":6.4254,"Condition":"Diabetes"},{"Year":1991,"Sex":"Women","Prevalence":6.7753,"Condition":"Diabetes"},{"Year":1992,"Sex":"Men","Prevalence":6.5756,"Condition":"Diabetes"},{"Year":1992,"Sex":"Women","Prevalence":6.896699999999999,"Condition":"Diabetes"},{"Year":1993,"Sex":"Men","Prevalence":6.7261500000000005,"Condition":"Diabetes"},{"Year":1993,"Sex":"Women","Prevalence":7.019,"Condition":"Diabetes"},{"Year":1994,"Sex":"Men","Prevalence":6.876950000000001,"Condition":"Diabetes"},{"Year":1994,"Sex":"Women","Prevalence":7.142849999999999,"Condition":"Diabetes"},{"Year":1995,"Sex":"Men","Prevalence":7.0296,"Condition":"Diabetes"},{"Year":1995,"Sex":"Women","Prevalence":7.2698,"Condition":"Diabetes"},{"Year":1996,"Sex":"Men","Prevalence":7.183400000000001,"Condition":"Diabetes"},{"Year":1996,"Sex":"Women","Prevalence":7.39905,"Condition":"Diabetes"},{"Year":1997,"Sex":"Men","Prevalence":7.3395,"Condition":"Diabetes"},{"Year":1997,"Sex":"Women","Prevalence":7.5318,"Condition":"Diabetes"},{"Year":1998,"Sex":"Men","Prevalence":7.49715,"Condition":"Diabetes"},{"Year":1998,"Sex":"Women","Prevalence":7.666,"Condition":"Diabetes"},{"Year":1999,"Sex":"Men","Prevalence":7.65555,"Condition":"Diabetes"},{"Year":1999,"Sex":"Women","Prevalence":7.8022,"Condition":"Diabetes"},{"Year":2000,"Sex":"Men","Prevalence":7.8153999999999995,"Condition":"Diabetes"},{"Year":2000,"Sex":"Women","Prevalence":7.94125,"Condition":"Diabetes"},{"Year":2001,"Sex":"Men","Prevalence":7.977250000000001,"Condition":"Diabetes"},{"Year":2001,"Sex":"Women","Prevalence":8.080499999999999,"Condition":"Diabetes"},{"Year":2002,"Sex":"Men","Prevalence":8.14005,"Condition":"Diabetes"},{"Year":2002,"Sex":"Women","Prevalence":8.22075,"Condition":"Diabetes"},{"Year":2003,"Sex":"Men","Prevalence":8.30335,"Condition":"Diabetes"},{"Year":2003,"Sex":"Women","Prevalence":8.3611,"Condition":"Diabetes"},{"Year":2004,"Sex":"Men","Prevalence":8.46705,"Condition":"Diabetes"},{"Year":2004,"Sex":"Women","Prevalence":8.5012,"Condition":"Diabetes"},{"Year":2005,"Sex":"Men","Prevalence":8.629399999999999,"Condition":"Diabetes"},{"Year":2005,"Sex":"Women","Prevalence":8.642999999999999,"Condition":"Diabetes"},{"Year":2006,"Sex":"Men","Prevalence":8.79065,"Condition":"Diabetes"},{"Year":2006,"Sex":"Women","Prevalence":8.78505,"Condition":"Diabetes"},{"Year":2007,"Sex":"Men","Prevalence":8.9534,"Condition":"Diabetes"},{"Year":2007,"Sex":"Women","Prevalence":8.9288,"Condition":"Diabetes"},{"Year":2008,"Sex":"Men","Prevalence":9.1164,"Condition":"Diabetes"},{"Year":2008,"Sex":"Women","Prevalence":9.0743,"Condition":"Diabetes"},{"Year":2009,"Sex":"Men","Prevalence":9.2755,"Condition":"Diabetes"},{"Year":2009,"Sex":"Women","Prevalence":9.218300000000001,"Condition":"Diabetes"},{"Year":2010,"Sex":"Men","Prevalence":9.4366,"Condition":"Diabetes"},{"Year":2010,"Sex":"Women","Prevalence":9.366900000000001,"Condition":"Diabetes"},{"Year":2011,"Sex":"Men","Prevalence":9.600249999999999,"Condition":"Diabetes"},{"Year":2011,"Sex":"Women","Prevalence":9.518149999999999,"Condition":"Diabetes"},{"Year":2012,"Sex":"Men","Prevalence":9.76825,"Condition":"Diabetes"},{"Year":2012,"Sex":"Women","Prevalence":9.67445,"Condition":"Diabetes"},{"Year":2013,"Sex":"Men","Prevalence":9.941749999999999,"Condition":"Diabetes"},{"Year":2013,"Sex":"Women","Prevalence":9.83605,"Condition":"Diabetes"},{"Year":2014,"Sex":"Men","Prevalence":10.122250000000001,"Condition":"Diabetes"},{"Year":2014,"Sex":"Women","Prevalence":10.0039,"Condition":"Diabetes"}]}},"title":"Chart 1: Global Prevalence Trends","desc":"Mean global prevalence of hypertension, obesity and diabetes (1980\u20132014) split by sex"},"chart2":{"spec":{"config":{"view":{"continuousWidth":300,"continuousHeight":300}},"layer":[{"data":{"name":"data-a0a55d106695e8d630baff0f16eee66d"},"mark":{"type":"rule","color":"black","strokeDash":[4,2],"strokeWidth":1},"encoding":{"y":{"field":"y","type":"quantitative"}}},{"data":{"name":"data-eae6a7029f41ccc2f3908125524ee3ed"},"mark":{"type":"line","strokeWidth":2},"encoding":{"color":{"field":"Region","scale":{"domain":["Africa","Americas","Europe","South-East Asia","Eastern Mediterranean","Western Pacific","Other"],"range":["#E15759","#4E79A7","#59A14F","#F28E2B","#B07AA1","#76B7B2","#BAB0AC"]},"type":"nominal"},"tooltip":[{"field":"Year","type":"quantitative"},{"field":"Region","type":"nominal"},{"field":"BP_GenderGap","format":".2f","type":"quantitative"}],"x":{"axis":{"labelAngle":-45,"title":"Year"},"field":"Year","type":"ordinal"},"y":{"field":"BP_GenderGap","title":"Gender Gap (% points, Men \u2212 Women)","type":"quantitative"}},"title":"Hypertension Gender Gap by Region (Men \u2212 Women, %) 1980\u20132014"}],"height":380,"title":"Hypertension Gender Gap by Region (Men \u2212 Women, %) 1980\u20132014","width":"container","$schema":"https://vega.github.io/schema/vega-lite/v5.20.1.json","datasets":{"data-a0a55d106695e8d630baff0f16eee66d":[{"y":0}],"data-eae6a7029f41ccc2f3908125524ee3ed":[{"Region":"Africa","Year":1980,"BP_GenderGap":-2.0993617021276596},{"Region":"Africa","Year":1981,"BP_GenderGap":-2.0131914893617022},{"Region":"Africa","Year":1982,"BP_GenderGap":-1.9295744680851064},{"Region":"Africa","Year":1983,"BP_GenderGap":-1.8417021276595744},{"Region":"Africa","Year":1984,"BP_GenderGap":-1.7568085106382978},{"Region":"Africa","Year":1985,"BP_GenderGap":-1.67},{"Region":"Africa","Year":1986,"BP_GenderGap":-1.583191489361702},{"Region":"Africa","Year":1987,"BP_GenderGap":-1.4942553191489363},{"Region":"Africa","Year":1988,"BP_GenderGap":-1.4095744680851063},{"Region":"Africa","Year":1989,"BP_GenderGap":-1.3270212765957448},{"Region":"Africa","Year":1990,"BP_GenderGap":-1.2491489361702128},{"Region":"Africa","Year":1991,"BP_GenderGap":-1.1712765957446807},{"Region":"Africa","Year":1992,"BP_GenderGap":-1.0976595744680853},{"Region":"Africa","Year":1993,"BP_GenderGap":-1.0261702127659573},{"Region":"Africa","Year":1994,"BP_GenderGap":-0.9559574468085106},{"Region":"Africa","Year":1995,"BP_GenderGap":-0.8865957446808511},{"Region":"Africa","Year":1996,"BP_GenderGap":-0.8180851063829788},{"Region":"Africa","Year":1997,"BP_GenderGap":-0.7497872340425531},{"Region":"Africa","Year":1998,"BP_GenderGap":-0.6836170212765958},{"Region":"Africa","Year":1999,"BP_GenderGap":-0.6157446808510638},{"Region":"Africa","Year":2000,"BP_GenderGap":-0.5529787234042552},{"Region":"Africa","Year":2001,"BP_GenderGap":-0.49191489361702123},{"Region":"Africa","Year":2002,"BP_GenderGap":-0.42936170212765956},{"Region":"Africa","Year":2003,"BP_GenderGap":-0.36978723404255315},{"Region":"Africa","Year":2004,"BP_GenderGap":-0.314468085106383},{"Region":"Africa","Year":2005,"BP_GenderGap":-0.25574468085106383},{"Region":"Africa","Year":2006,"BP_GenderGap":-0.19914893617021276},{"Region":"Africa","Year":2007,"BP_GenderGap":-0.1421276595744681},{"Region":"Africa","Year":2008,"BP_GenderGap":-0.08340425531914893},{"Region":"Africa","Year":2009,"BP_GenderGap":-0.024255319148936152},{"Region":"Africa","Year":2010,"BP_GenderGap":0.034680851063829767},{"Region":"Africa","Year":2011,"BP_GenderGap":0.09212765957446808},{"Region":"Africa","Year":2012,"BP_GenderGap":0.14787234042553185},{"Region":"Africa","Year":2013,"BP_GenderGap":0.19659574468085106},{"Region":"Africa","Year":2014,"BP_GenderGap":0.24361702127659582},{"Region":"Americas","Year":1980,"BP_GenderGap":-3.5797222222222222},{"Region":"Americas","Year":1981,"BP_GenderGap":-3.6452777777777774},{"Region":"Americas","Year":1982,"BP_GenderGap":-3.704444444444445},{"Region":"Americas","Year":1983,"BP_GenderGap":-3.754722222222222},{"Region":"Americas","Year":1984,"BP_GenderGap":-3.7969444444444442},{"Region":"Americas","Year":1985,"BP_GenderGap":-3.8322222222222226},{"Region":"Americas","Year":1986,"BP_GenderGap":-3.8600000000000003},{"Region":"Americas","Year":1987,"BP_GenderGap":-3.8838888888888885},{"Region":"Americas","Year":1988,"BP_GenderGap":-3.9050000000000002},{"Region":"Americas","Year":1989,"BP_GenderGap":-3.9208333333333334},{"Region":"Americas","Year":1990,"BP_GenderGap":-3.9341666666666666},{"Region":"Americas","Year":1991,"BP_GenderGap":-3.948888888888889},{"Region":"Americas","Year":1992,"BP_GenderGap":-3.963611111111111},{"Region":"Americas","Year":1993,"BP_GenderGap":-3.983611111111111},{"Region":"Americas","Year":1994,"BP_GenderGap":-4.0075},{"Region":"Americas","Year":1995,"BP_GenderGap":-4.04111111111111},{"Region":"Americas","Year":1996,"BP_GenderGap":-4.0825},{"Region":"Americas","Year":1997,"BP_GenderGap":-4.130277777777778},{"Region":"Americas","Year":1998,"BP_GenderGap":-4.187222222222222},{"Region":"Americas","Year":1999,"BP_GenderGap":-4.246111111111111},{"Region":"Americas","Year":2000,"BP_GenderGap":-4.3069444444444445},{"Region":"Americas","Year":2001,"BP_GenderGap":-4.369166666666667},{"Region":"Americas","Year":2002,"BP_GenderGap":-4.430277777777778},{"Region":"Americas","Year":2003,"BP_GenderGap":-4.490277777777778},{"Region":"Americas","Year":2004,"BP_GenderGap":-4.547777777777778},{"Region":"Americas","Year":2005,"BP_GenderGap":-4.6025},{"Region":"Americas","Year":2006,"BP_GenderGap":-4.655277777777778},{"Region":"Americas","Year":2007,"BP_GenderGap":-4.71},{"Region":"Americas","Year":2008,"BP_GenderGap":-4.762499999999999},{"Region":"Americas","Year":2009,"BP_GenderGap":-4.813611111111111},{"Region":"Americas","Year":2010,"BP_GenderGap":-4.86},{"Region":"Americas","Year":2011,"BP_GenderGap":-4.9063888888888885},{"Region":"Americas","Year":2012,"BP_GenderGap":-4.947777777777778},{"Region":"Americas","Year":2013,"BP_GenderGap":-4.990277777777778},{"Region":"Americas","Year":2014,"BP_GenderGap":-5.0325},{"Region":"Eastern Mediterranean","Year":1980,"BP_GenderGap":0.36649999999999994},{"Region":"Eastern Mediterranean","Year":1981,"BP_GenderGap":0.36750000000000005},{"Region":"Eastern Mediterranean","Year":1982,"BP_GenderGap":0.356},{"Region":"Eastern Mediterranean","Year":1983,"BP_GenderGap":0.338},{"Region":"Eastern Mediterranean","Year":1984,"BP_GenderGap":0.31449999999999995},{"Region":"Eastern Mediterranean","Year":1985,"BP_GenderGap":0.2935},{"Region":"Eastern Mediterranean","Year":1986,"BP_GenderGap":0.27749999999999997},{"Region":"Eastern Mediterranean","Year":1987,"BP_GenderGap":0.26749999999999996},{"Region":"Eastern Mediterranean","Year":1988,"BP_GenderGap":0.262},{"Region":"Eastern Mediterranean","Year":1989,"BP_GenderGap":0.26549999999999996},{"Region":"Eastern Mediterranean","Year":1990,"BP_GenderGap":0.27249999999999996},{"Region":"Eastern Mediterranean","Year":1991,"BP_GenderGap":0.281},{"Region":"Eastern Mediterranean","Year":1992,"BP_GenderGap":0.28300000000000003},{"Region":"Eastern Mediterranean","Year":1993,"BP_GenderGap":0.2705},{"Region":"Eastern Mediterranean","Year":1994,"BP_GenderGap":0.2375},{"Region":"Eastern Mediterranean","Year":1995,"BP_GenderGap":0.1795},{"Region":"Eastern Mediterranean","Year":1996,"BP_GenderGap":0.10149999999999997},{"Region":"Eastern Mediterranean","Year":1997,"BP_GenderGap":0.005499999999999972},{"Region":"Eastern Mediterranean","Year":1998,"BP_GenderGap":-0.10550000000000001},{"Region":"Eastern Mediterranean","Year":1999,"BP_GenderGap":-0.23200000000000004},{"Region":"Eastern Mediterranean","Year":2000,"BP_GenderGap":-0.371},{"Region":"Eastern Mediterranean","Year":2001,"BP_GenderGap":-0.5145},{"Region":"Eastern Mediterranean","Year":2002,"BP_GenderGap":-0.6645},{"Region":"Eastern Mediterranean","Year":2003,"BP_GenderGap":-0.8109999999999999},{"Region":"Eastern Mediterranean","Year":2004,"BP_GenderGap":-0.9595},{"Region":"Eastern Mediterranean","Year":2005,"BP_GenderGap":-1.1075},{"Region":"Eastern Mediterranean","Year":2006,"BP_GenderGap":-1.247},{"Region":"Eastern Mediterranean","Year":2007,"BP_GenderGap":-1.3845},{"Region":"Eastern Mediterranean","Year":2008,"BP_GenderGap":-1.5135},{"Region":"Eastern Mediterranean","Year":2009,"BP_GenderGap":-1.6309999999999998},{"Region":"Eastern Mediterranean","Year":2010,"BP_GenderGap":-1.7425000000000002},{"Region":"Eastern Mediterranean","Year":2011,"BP_GenderGap":-1.843},{"Region":"Eastern Mediterranean","Year":2012,"BP_GenderGap":-1.9454999999999998},{"Region":"Eastern Mediterranean","Year":2013,"BP_GenderGap":-2.044},{"Region":"Eastern Mediterranean","Year":2014,"BP_GenderGap":-2.144},{"Region":"Europe","Year":1980,"BP_GenderGap":-7.021568627450981},{"Region":"Europe","Year":1981,"BP_GenderGap":-7.125882352941177},{"Region":"Europe","Year":1982,"BP_GenderGap":-7.222941176470588},{"Region":"Europe","Year":1983,"BP_GenderGap":-7.31313725490196},{"Region":"Europe","Year":1984,"BP_GenderGap":-7.394509803921569},{"Region":"Europe","Year":1985,"BP_GenderGap":-7.4688235294117655},{"Region":"Europe","Year":1986,"BP_GenderGap":-7.533725490196078},{"Region":"Europe","Year":1987,"BP_GenderGap":-7.593333333333333},{"Region":"Europe","Year":1988,"BP_GenderGap":-7.652549019607843},{"Region":"Europe","Year":1989,"BP_GenderGap":-7.702549019607843},{"Region":"Europe","Year":1990,"BP_GenderGap":-7.7525490196078435},{"Region":"Europe","Year":1991,"BP_GenderGap":-7.7925490196078435},{"Region":"Europe","Year":1992,"BP_GenderGap":-7.838039215686274},{"Region":"Europe","Year":1993,"BP_GenderGap":-7.87843137254902},{"Region":"Europe","Year":1994,"BP_GenderGap":-7.9186274509803924},{"Region":"Europe","Year":1995,"BP_GenderGap":-7.9580392156862745},{"Region":"Europe","Year":1996,"BP_GenderGap":-7.998235294117646},{"Region":"Europe","Year":1997,"BP_GenderGap":-8.038823529411765},{"Region":"Europe","Year":1998,"BP_GenderGap":-8.085686274509804},{"Region":"Europe","Year":1999,"BP_GenderGap":-8.13392156862745},{"Region":"Europe","Year":2000,"BP_GenderGap":-8.184117647058823},{"Region":"Europe","Year":2001,"BP_GenderGap":-8.23764705882353},{"Region":"Europe","Year":2002,"BP_GenderGap":-8.294901960784314},{"Region":"Europe","Year":2003,"BP_GenderGap":-8.351960784313725},{"Region":"Europe","Year":2004,"BP_GenderGap":-8.407450980392158},{"Region":"Europe","Year":2005,"BP_GenderGap":-8.46137254901961},{"Region":"Europe","Year":2006,"BP_GenderGap":-8.509607843137255},{"Region":"Europe","Year":2007,"BP_GenderGap":-8.555294117647058},{"Region":"Europe","Year":2008,"BP_GenderGap":-8.59235294117647},{"Region":"Europe","Year":2009,"BP_GenderGap":-8.620196078431372},{"Region":"Europe","Year":2010,"BP_GenderGap":-8.635490196078432},{"Region":"Europe","Year":2011,"BP_GenderGap":-8.642156862745098},{"Region":"Europe","Year":2012,"BP_GenderGap":-8.650196078431373},{"Region":"Europe","Year":2013,"BP_GenderGap":-8.65529411764706},{"Region":"Europe","Year":2014,"BP_GenderGap":-8.655686274509804},{"Region":"Other","Year":1980,"BP_GenderGap":-2.82},{"Region":"Other","Year":1981,"BP_GenderGap":-2.9133333333333336},{"Region":"Other","Year":1982,"BP_GenderGap":-3.0100000000000002},{"Region":"Other","Year":1983,"BP_GenderGap":-3.1099999999999994},{"Region":"Other","Year":1984,"BP_GenderGap":-3.206666666666667},{"Region":"Other","Year":1985,"BP_GenderGap":-3.3066666666666666},{"Region":"Other","Year":1986,"BP_GenderGap":-3.4033333333333338},{"Region":"Other","Year":1987,"BP_GenderGap":-3.5},{"Region":"Other","Year":1988,"BP_GenderGap":-3.6},{"Region":"Other","Year":1989,"BP_GenderGap":-3.6999999999999997},{"Region":"Other","Year":1990,"BP_GenderGap":-3.806666666666666},{"Region":"Other","Year":1991,"BP_GenderGap":-3.9033333333333338},{"Region":"Other","Year":1992,"BP_GenderGap":-4.0},{"Region":"Other","Year":1993,"BP_GenderGap":-4.11},{"Region":"Other","Year":1994,"BP_GenderGap":-4.216666666666667},{"Region":"Other","Year":1995,"BP_GenderGap":-4.333333333333333},{"Region":"Other","Year":1996,"BP_GenderGap":-4.446666666666666},{"Region":"Other","Year":1997,"BP_GenderGap":-4.573333333333333},{"Region":"Other","Year":1998,"BP_GenderGap":-4.7},{"Region":"Other","Year":1999,"BP_GenderGap":-4.84},{"Region":"Other","Year":2000,"BP_GenderGap":-4.98},{"Region":"Other","Year":2001,"BP_GenderGap":-5.13},{"Region":"Other","Year":2002,"BP_GenderGap":-5.27},{"Region":"Other","Year":2003,"BP_GenderGap":-5.419999999999999},{"Region":"Other","Year":2004,"BP_GenderGap":-5.5566666666666675},{"Region":"Other","Year":2005,"BP_GenderGap":-5.6933333333333325},{"Region":"Other","Year":2006,"BP_GenderGap":-5.823333333333334},{"Region":"Other","Year":2007,"BP_GenderGap":-5.95},{"Region":"Other","Year":2008,"BP_GenderGap":-6.073333333333333},{"Region":"Other","Year":2009,"BP_GenderGap":-6.186666666666667},{"Region":"Other","Year":2010,"BP_GenderGap":-6.296666666666667},{"Region":"Other","Year":2011,"BP_GenderGap":-6.390000000000001},{"Region":"Other","Year":2012,"BP_GenderGap":-6.483333333333333},{"Region":"Other","Year":2013,"BP_GenderGap":-6.573333333333333},{"Region":"Other","Year":2014,"BP_GenderGap":-6.66},{"Region":"South-East Asia","Year":1980,"BP_GenderGap":-1.9854545454545454},{"Region":"South-East Asia","Year":1981,"BP_GenderGap":-1.9227272727272726},{"Region":"South-East Asia","Year":1982,"BP_GenderGap":-1.8618181818181818},{"Region":"South-East Asia","Year":1983,"BP_GenderGap":-1.8045454545454547},{"Region":"South-East Asia","Year":1984,"BP_GenderGap":-1.7572727272727275},{"Region":"South-East Asia","Year":1985,"BP_GenderGap":-1.720909090909091},{"Region":"South-East Asia","Year":1986,"BP_GenderGap":-1.6881818181818182},{"Region":"South-East Asia","Year":1987,"BP_GenderGap":-1.6581818181818184},{"Region":"South-East Asia","Year":1988,"BP_GenderGap":-1.630909090909091},{"Region":"South-East Asia","Year":1989,"BP_GenderGap":-1.6036363636363637},{"Region":"South-East Asia","Year":1990,"BP_GenderGap":-1.5772727272727272},{"Region":"South-East Asia","Year":1991,"BP_GenderGap":-1.5472727272727271},{"Region":"South-East Asia","Year":1992,"BP_GenderGap":-1.518181818181818},{"Region":"South-East Asia","Year":1993,"BP_GenderGap":-1.4927272727272725},{"Region":"South-East Asia","Year":1994,"BP_GenderGap":-1.4772727272727273},{"Region":"South-East Asia","Year":1995,"BP_GenderGap":-1.4654545454545456},{"Region":"South-East Asia","Year":1996,"BP_GenderGap":-1.4563636363636363},{"Region":"South-East Asia","Year":1997,"BP_GenderGap":-1.4527272727272726},{"Region":"South-East Asia","Year":1998,"BP_GenderGap":-1.4536363636363636},{"Region":"South-East Asia","Year":1999,"BP_GenderGap":-1.4618181818181817},{"Region":"South-East Asia","Year":2000,"BP_GenderGap":-1.470909090909091},{"Region":"South-East Asia","Year":2001,"BP_GenderGap":-1.482727272727273},{"Region":"South-East Asia","Year":2002,"BP_GenderGap":-1.4981818181818183},{"Region":"South-East Asia","Year":2003,"BP_GenderGap":-1.5063636363636363},{"Region":"South-East Asia","Year":2004,"BP_GenderGap":-1.5036363636363639},{"Region":"South-East Asia","Year":2005,"BP_GenderGap":-1.5018181818181817},{"Region":"South-East Asia","Year":2006,"BP_GenderGap":-1.4945454545454546},{"Region":"South-East Asia","Year":2007,"BP_GenderGap":-1.4854545454545454},{"Region":"South-East Asia","Year":2008,"BP_GenderGap":-1.4718181818181817},{"Region":"South-East Asia","Year":2009,"BP_GenderGap":-1.46},{"Region":"South-East Asia","Year":2010,"BP_GenderGap":-1.4545454545454546},{"Region":"South-East Asia","Year":2011,"BP_GenderGap":-1.4500000000000002},{"Region":"South-East Asia","Year":2012,"BP_GenderGap":-1.4363636363636365},{"Region":"South-East Asia","Year":2013,"BP_GenderGap":-1.429090909090909},{"Region":"South-East Asia","Year":2014,"BP_GenderGap":-1.4227272727272726},{"Region":"Western Pacific","Year":1980,"BP_GenderGap":-4.3246875},{"Region":"Western Pacific","Year":1981,"BP_GenderGap":-4.3571875},{"Region":"Western Pacific","Year":1982,"BP_GenderGap":-4.3834375},{"Region":"Western Pacific","Year":1983,"BP_GenderGap":-4.39875},{"Region":"Western Pacific","Year":1984,"BP_GenderGap":-4.4115625},{"Region":"Western Pacific","Year":1985,"BP_GenderGap":-4.4225},{"Region":"Western Pacific","Year":1986,"BP_GenderGap":-4.4290625},{"Region":"Western Pacific","Year":1987,"BP_GenderGap":-4.43375},{"Region":"Western Pacific","Year":1988,"BP_GenderGap":-4.434375},{"Region":"Western Pacific","Year":1989,"BP_GenderGap":-4.4340625},{"Region":"Western Pacific","Year":1990,"BP_GenderGap":-4.4425},{"Region":"Western Pacific","Year":1991,"BP_GenderGap":-4.4484375},{"Region":"Western Pacific","Year":1992,"BP_GenderGap":-4.4571875},{"Region":"Western Pacific","Year":1993,"BP_GenderGap":-4.4690625},{"Region":"Western Pacific","Year":1994,"BP_GenderGap":-4.47875},{"Region":"Western Pacific","Year":1995,"BP_GenderGap":-4.4903125},{"Region":"Western Pacific","Year":1996,"BP_GenderGap":-4.5028125},{"Region":"Western Pacific","Year":1997,"BP_GenderGap":-4.5128125},{"Region":"Western Pacific","Year":1998,"BP_GenderGap":-4.5203125},{"Region":"Western Pacific","Year":1999,"BP_GenderGap":-4.521875},{"Region":"Western Pacific","Year":2000,"BP_GenderGap":-4.5225},{"Region":"Western Pacific","Year":2001,"BP_GenderGap":-4.5215625},{"Region":"Western Pacific","Year":2002,"BP_GenderGap":-4.51875},{"Region":"Western Pacific","Year":2003,"BP_GenderGap":-4.51375},{"Region":"Western Pacific","Year":2004,"BP_GenderGap":-4.5071875},{"Region":"Western Pacific","Year":2005,"BP_GenderGap":-4.5009375},{"Region":"Western Pacific","Year":2006,"BP_GenderGap":-4.4953125},{"Region":"Western Pacific","Year":2007,"BP_GenderGap":-4.491875},{"Region":"Western Pacific","Year":2008,"BP_GenderGap":-4.4865625},{"Region":"Western Pacific","Year":2009,"BP_GenderGap":-4.4803125},{"Region":"Western Pacific","Year":2010,"BP_GenderGap":-4.4703125},{"Region":"Western Pacific","Year":2011,"BP_GenderGap":-4.4565624999999995},{"Region":"Western Pacific","Year":2012,"BP_GenderGap":-4.4475},{"Region":"Western Pacific","Year":2013,"BP_GenderGap":-4.4359375},{"Region":"Western Pacific","Year":2014,"BP_GenderGap":-4.424375}]}},"title":"Chart 2: Hypertension Gender Gap by Region","desc":"Men minus Women hypertension prevalence by WHO region over time"},"chart3":{"spec":{"config":{"view":{"continuousWidth":300,"continuousHeight":300}},"data":{"name":"data-1dbf2b67c64df868329a941d4e5776d5"},"mark":{"type":"bar"},"encoding":{"color":{"field":"Sex","scale":{"domain":["Men","Women"],"range":["#4E79A7","#E15759"]},"type":"nominal"},"column":{"field":"Group","type":"nominal"},"tooltip":[{"field":"Country","type":"nominal"},{"field":"Sex","type":"nominal"},{"field":"BMI_Prevalence","format":".1f","type":"quantitative"},{"field":"Region","type":"nominal"}],"x":{"field":"BMI_Prevalence","title":"Obesity Prevalence (%)","type":"quantitative"},"y":{"field":"Country","sort":{"field":"sort_val","order":"descending"},"title":"","type":"nominal"}},"height":430,"title":"Obesity Prevalence by Country in 2014: Top & Bottom 15","width":350,"$schema":"https://vega.github.io/schema/vega-lite/v5.20.1.json","datasets":{"data-1dbf2b67c64df868329a941d4e5776d5":[{"Country":"American Samoa","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":57.88,"Group":"Top 15 (Highest)","sort_val":61.379999999999995},{"Country":"American Samoa","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":64.88,"Group":"Top 15 (Highest)","sort_val":61.379999999999995},{"Country":"Bangladesh","Region":"South-East Asia","Sex":"Men","BMI_Prevalence":2.06,"Group":"Bottom 15 (Lowest)","sort_val":3.3600000000000003},{"Country":"Bangladesh","Region":"South-East Asia","Sex":"Women","BMI_Prevalence":4.66,"Group":"Bottom 15 (Lowest)","sort_val":3.3600000000000003},{"Country":"Burkina Faso","Region":"Africa","Sex":"Men","BMI_Prevalence":2.35,"Group":"Bottom 15 (Lowest)","sort_val":4.985},{"Country":"Burkina Faso","Region":"Africa","Sex":"Women","BMI_Prevalence":7.62,"Group":"Bottom 15 (Lowest)","sort_val":4.985},{"Country":"Cambodia","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":2.47,"Group":"Bottom 15 (Lowest)","sort_val":3.505},{"Country":"Cambodia","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":4.54,"Group":"Bottom 15 (Lowest)","sort_val":3.505},{"Country":"Cook Islands","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":52.71,"Group":"Top 15 (Highest)","sort_val":56.400000000000006},{"Country":"Cook Islands","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":60.09,"Group":"Top 15 (Highest)","sort_val":56.400000000000006},{"Country":"Eritrea","Region":"Africa","Sex":"Men","BMI_Prevalence":1.9,"Group":"Bottom 15 (Lowest)","sort_val":4.545},{"Country":"Eritrea","Region":"Africa","Sex":"Women","BMI_Prevalence":7.19,"Group":"Bottom 15 (Lowest)","sort_val":4.545},{"Country":"Ethiopia","Region":"Africa","Sex":"Men","BMI_Prevalence":1.75,"Group":"Bottom 15 (Lowest)","sort_val":4.154999999999999},{"Country":"Ethiopia","Region":"Africa","Sex":"Women","BMI_Prevalence":6.56,"Group":"Bottom 15 (Lowest)","sort_val":4.154999999999999},{"Country":"French Polynesia","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":47.6,"Group":"Top 15 (Highest)","sort_val":51.835},{"Country":"French Polynesia","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":56.07,"Group":"Top 15 (Highest)","sort_val":51.835},{"Country":"India","Region":"South-East Asia","Sex":"Men","BMI_Prevalence":2.53,"Group":"Bottom 15 (Lowest)","sort_val":3.6799999999999997},{"Country":"India","Region":"South-East Asia","Sex":"Women","BMI_Prevalence":4.83,"Group":"Bottom 15 (Lowest)","sort_val":3.6799999999999997},{"Country":"Japan","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":4.49,"Group":"Bottom 15 (Lowest)","sort_val":4.085},{"Country":"Japan","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":3.68,"Group":"Bottom 15 (Lowest)","sort_val":4.085},{"Country":"Kiribati","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":41.39,"Group":"Top 15 (Highest)","sort_val":46.14},{"Country":"Kiribati","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":50.89,"Group":"Top 15 (Highest)","sort_val":46.14},{"Country":"Kuwait","Region":"Eastern Mediterranean","Sex":"Men","BMI_Prevalence":32.95,"Group":"Top 15 (Highest)","sort_val":39.6},{"Country":"Kuwait","Region":"Eastern Mediterranean","Sex":"Women","BMI_Prevalence":46.25,"Group":"Top 15 (Highest)","sort_val":39.6},{"Country":"Lao PDR","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":3.3,"Group":"Bottom 15 (Lowest)","sort_val":4.79},{"Country":"Lao PDR","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":6.28,"Group":"Bottom 15 (Lowest)","sort_val":4.79},{"Country":"Madagascar","Region":"Africa","Sex":"Men","BMI_Prevalence":2.75,"Group":"Bottom 15 (Lowest)","sort_val":4.95},{"Country":"Madagascar","Region":"Africa","Sex":"Women","BMI_Prevalence":7.15,"Group":"Bottom 15 (Lowest)","sort_val":4.95},{"Country":"Marshall Islands","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":48.48,"Group":"Top 15 (Highest)","sort_val":53.34},{"Country":"Marshall Islands","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":58.2,"Group":"Top 15 (Highest)","sort_val":53.34},{"Country":"Micronesia (Federated States of)","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":39.76,"Group":"Top 15 (Highest)","sort_val":45.845},{"Country":"Micronesia (Federated States of)","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":51.93,"Group":"Top 15 (Highest)","sort_val":45.845},{"Country":"Nauru","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":58.95,"Group":"Top 15 (Highest)","sort_val":61.65},{"Country":"Nauru","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":64.35,"Group":"Top 15 (Highest)","sort_val":61.65},{"Country":"Nepal","Region":"South-East Asia","Sex":"Men","BMI_Prevalence":2.47,"Group":"Bottom 15 (Lowest)","sort_val":3.7750000000000004},{"Country":"Nepal","Region":"South-East Asia","Sex":"Women","BMI_Prevalence":5.08,"Group":"Bottom 15 (Lowest)","sort_val":3.7750000000000004},{"Country":"Niue","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":44.35,"Group":"Top 15 (Highest)","sort_val":49.925},{"Country":"Niue","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":55.5,"Group":"Top 15 (Highest)","sort_val":49.925},{"Country":"Palau","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":51.8,"Group":"Top 15 (Highest)","sort_val":55.735},{"Country":"Palau","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":59.67,"Group":"Top 15 (Highest)","sort_val":55.735},{"Country":"Qatar","Region":"Eastern Mediterranean","Sex":"Men","BMI_Prevalence":32.04,"Group":"Top 15 (Highest)","sort_val":37.855000000000004},{"Country":"Qatar","Region":"Eastern Mediterranean","Sex":"Women","BMI_Prevalence":43.67,"Group":"Top 15 (Highest)","sort_val":37.855000000000004},{"Country":"Samoa","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":39.77,"Group":"Top 15 (Highest)","sort_val":47.655},{"Country":"Samoa","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":55.54,"Group":"Top 15 (Highest)","sort_val":47.655},{"Country":"South Korea","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":4.23,"Group":"Bottom 15 (Lowest)","sort_val":4.525},{"Country":"South Korea","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":4.82,"Group":"Bottom 15 (Lowest)","sort_val":4.525},{"Country":"Sri Lanka","Region":"South-East Asia","Sex":"Men","BMI_Prevalence":2.6,"Group":"Bottom 15 (Lowest)","sort_val":4.735},{"Country":"Sri Lanka","Region":"South-East Asia","Sex":"Women","BMI_Prevalence":6.87,"Group":"Bottom 15 (Lowest)","sort_val":4.735},{"Country":"Timor-Leste","Region":"South-East Asia","Sex":"Men","BMI_Prevalence":2.37,"Group":"Bottom 15 (Lowest)","sort_val":3.485},{"Country":"Timor-Leste","Region":"South-East Asia","Sex":"Women","BMI_Prevalence":4.6,"Group":"Bottom 15 (Lowest)","sort_val":3.485},{"Country":"Tokelau","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":39.48,"Group":"Top 15 (Highest)","sort_val":45.09},{"Country":"Tokelau","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":50.7,"Group":"Top 15 (Highest)","sort_val":45.09},{"Country":"Tonga","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":41.09,"Group":"Top 15 (Highest)","sort_val":48.010000000000005},{"Country":"Tonga","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":54.93,"Group":"Top 15 (Highest)","sort_val":48.010000000000005},{"Country":"Tuvalu","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":46.71,"Group":"Top 15 (Highest)","sort_val":51.695},{"Country":"Tuvalu","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":56.68,"Group":"Top 15 (Highest)","sort_val":51.695},{"Country":"Uganda","Region":"Africa","Sex":"Men","BMI_Prevalence":1.71,"Group":"Bottom 15 (Lowest)","sort_val":4.949999999999999},{"Country":"Uganda","Region":"Africa","Sex":"Women","BMI_Prevalence":8.19,"Group":"Bottom 15 (Lowest)","sort_val":4.949999999999999},{"Country":"Viet Nam","Region":"Western Pacific","Sex":"Men","BMI_Prevalence":1.39,"Group":"Bottom 15 (Lowest)","sort_val":1.8849999999999998},{"Country":"Viet Nam","Region":"Western Pacific","Sex":"Women","BMI_Prevalence":2.38,"Group":"Bottom 15 (Lowest)","sort_val":1.8849999999999998}]}},"title":"Chart 3: Top & Bottom 15 Countries \u2014 Obesity 2014","desc":"Highest and lowest obesity prevalence countries in 2014 by sex"},"chart4":{"spec":{"config":{"view":{"continuousWidth":300,"continuousHeight":300}},"layer":[{"mark":{"type":"point","filled":true,"opacity":0.75,"size":60},"encoding":{"color":{"field":"Region","scale":{"domain":["Africa","Americas","Europe","South-East Asia","Eastern Mediterranean","Western Pacific","Other"],"range":["#E15759","#4E79A7","#59A14F","#F28E2B","#B07AA1","#76B7B2","#BAB0AC"]},"type":"nominal"},"tooltip":[{"field":"Country","type":"nominal"},{"field":"Region","type":"nominal"},{"field":"BMI_Avg","format":".1f","type":"quantitative"},{"field":"Diabetes_Avg","format":".1f","type":"quantitative"}],"x":{"field":"BMI_Avg","title":"Mean Obesity Prevalence (%)","type":"quantitative"},"y":{"field":"Diabetes_Avg","title":"Mean Diabetes Prevalence (%)","type":"quantitative"}}},{"mark":{"type":"line","color":"gray","strokeDash":[4,2],"strokeWidth":1.5},"encoding":{"x":{"field":"BMI_Avg","type":"quantitative"},"y":{"field":"Diabetes_Avg","type":"quantitative"}},"transform":[{"on":"BMI_Avg","regression":"Diabetes_Avg"}]},{"data":{"name":"data-8f11f929b0901c971df5e5ef6faf6e03"},"mark":{"type":"text","color":"#B07AA1","dx":8,"dy":-8,"fontSize":10},"encoding":{"text":{"field":"Country","type":"nominal"},"x":{"field":"BMI_Avg","type":"quantitative"},"y":{"field":"Diabetes_Avg","type":"quantitative"}}}],"data":{"name":"data-a62b392494d5f81ad9062412a95ba2fa"},"height":450,"title":"Obesity vs Diabetes Prevalence by Country (2014) \u2014 Coloured by Region","width":"container","$schema":"https://vega.github.io/schema/vega-lite/v5.20.1.json","datasets":{"data-a62b392494d5f81ad9062412a95ba2fa":[{"Country":"Afghanistan","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":5.12,"Diabetes_Avg":11.91,"is_uae":false},{"Country":"Albania","Region":"Europe","Year":2014,"BMI_Avg":21.325000000000003,"Diabetes_Avg":7.385,"is_uae":false},{"Country":"Algeria","Region":"Africa","Year":2014,"BMI_Avg":27.020000000000003,"Diabetes_Avg":12.425,"is_uae":false},{"Country":"American Samoa","Region":"Western Pacific","Year":2014,"BMI_Avg":61.379999999999995,"Diabetes_Avg":31.84,"is_uae":false},{"Country":"Andorra","Region":"Europe","Year":2014,"BMI_Avg":26.09,"Diabetes_Avg":6.955,"is_uae":false},{"Country":"Angola","Region":"Africa","Year":2014,"BMI_Avg":7.655,"Diabetes_Avg":8.175,"is_uae":false},{"Country":"Antigua and Barbuda","Region":"Americas","Year":2014,"BMI_Avg":18.53,"Diabetes_Avg":11.465,"is_uae":false},{"Country":"Argentina","Region":"Americas","Year":2014,"BMI_Avg":28.145,"Diabetes_Avg":9.670000000000002,"is_uae":false},{"Country":"Armenia","Region":"Europe","Year":2014,"BMI_Avg":19.92,"Diabetes_Avg":11.485,"is_uae":false},{"Country":"Australia","Region":"Western Pacific","Year":2014,"BMI_Avg":28.87,"Diabetes_Avg":5.895,"is_uae":false},{"Country":"Austria","Region":"Europe","Year":2014,"BMI_Avg":19.985,"Diabetes_Avg":4.315,"is_uae":false},{"Country":"Azerbaijan","Region":"Europe","Year":2014,"BMI_Avg":19.32,"Diabetes_Avg":12.3,"is_uae":false},{"Country":"Bahamas","Region":"Americas","Year":2014,"BMI_Avg":31.305,"Diabetes_Avg":12.435,"is_uae":false},{"Country":"Bahrain","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":31.28,"Diabetes_Avg":11.325,"is_uae":false},{"Country":"Bangladesh","Region":"South-East Asia","Year":2014,"BMI_Avg":3.3600000000000003,"Diabetes_Avg":9.77,"is_uae":false},{"Country":"Barbados","Region":"Americas","Year":2014,"BMI_Avg":22.72,"Diabetes_Avg":12.11,"is_uae":false},{"Country":"Belarus","Region":"Europe","Year":2014,"BMI_Avg":24.35,"Diabetes_Avg":7.779999999999999,"is_uae":false},{"Country":"Belgium","Region":"Europe","Year":2014,"BMI_Avg":22.22,"Diabetes_Avg":4.5649999999999995,"is_uae":false},{"Country":"Belize","Region":"Americas","Year":2014,"BMI_Avg":23.79,"Diabetes_Avg":12.59,"is_uae":false},{"Country":"Benin","Region":"Africa","Year":2014,"BMI_Avg":9.115,"Diabetes_Avg":7.1899999999999995,"is_uae":false},{"Country":"Bermuda","Region":"Americas","Year":2014,"BMI_Avg":35.57,"Diabetes_Avg":14.825,"is_uae":false},{"Country":"Bhutan","Region":"South-East Asia","Year":2014,"BMI_Avg":6.245000000000001,"Diabetes_Avg":11.725,"is_uae":false},{"Country":"Bolivia","Region":"Americas","Year":2014,"BMI_Avg":19.805,"Diabetes_Avg":7.949999999999999,"is_uae":false},{"Country":"Bosnia and Herzegovina","Region":"Europe","Year":2014,"BMI_Avg":17.700000000000003,"Diabetes_Avg":7.4350000000000005,"is_uae":false},{"Country":"Botswana","Region":"Africa","Year":2014,"BMI_Avg":18.68,"Diabetes_Avg":8.52,"is_uae":false},{"Country":"Brazil","Region":"Americas","Year":2014,"BMI_Avg":21.785,"Diabetes_Avg":8.24,"is_uae":false},{"Country":"Brunei Darussalam","Region":"Western Pacific","Year":2014,"BMI_Avg":13.615,"Diabetes_Avg":9.445,"is_uae":false},{"Country":"Bulgaria","Region":"Europe","Year":2014,"BMI_Avg":24.925,"Diabetes_Avg":7.66,"is_uae":false},{"Country":"Burkina Faso","Region":"Africa","Year":2014,"BMI_Avg":4.985,"Diabetes_Avg":6.41,"is_uae":false},{"Country":"Burundi","Region":"Africa","Year":2014,"BMI_Avg":5.055,"Diabetes_Avg":4.165,"is_uae":false},{"Country":"Cabo Verde","Region":"Africa","Year":2014,"BMI_Avg":11.260000000000002,"Diabetes_Avg":8.545,"is_uae":false},{"Country":"Cambodia","Region":"Western Pacific","Year":2014,"BMI_Avg":3.505,"Diabetes_Avg":7.154999999999999,"is_uae":false},{"Country":"Cameroon","Region":"Africa","Year":2014,"BMI_Avg":10.925,"Diabetes_Avg":6.71,"is_uae":false},{"Country":"Canada","Region":"Americas","Year":2014,"BMI_Avg":29.27,"Diabetes_Avg":5.495,"is_uae":false},{"Country":"Central African Republic","Region":"Africa","Year":2014,"BMI_Avg":7.03,"Diabetes_Avg":7.795,"is_uae":false},{"Country":"Chad","Region":"Africa","Year":2014,"BMI_Avg":5.74,"Diabetes_Avg":7.02,"is_uae":false},{"Country":"Chile","Region":"Americas","Year":2014,"BMI_Avg":27.925,"Diabetes_Avg":10.495000000000001,"is_uae":false},{"Country":"China","Region":"Western Pacific","Year":2014,"BMI_Avg":5.8,"Diabetes_Avg":8.77,"is_uae":false},{"Country":"China (Hong Kong SAR)","Region":"Western Pacific","Year":2014,"BMI_Avg":10.59,"Diabetes_Avg":7.55,"is_uae":false},{"Country":"Colombia","Region":"Americas","Year":2014,"BMI_Avg":21.990000000000002,"Diabetes_Avg":8.52,"is_uae":false},{"Country":"Comoros","Region":"Africa","Year":2014,"BMI_Avg":7.455,"Diabetes_Avg":7.9399999999999995,"is_uae":false},{"Country":"Congo","Region":"Africa","Year":2014,"BMI_Avg":9.23,"Diabetes_Avg":7.67,"is_uae":false},{"Country":"Cook Islands","Region":"Western Pacific","Year":2014,"BMI_Avg":56.400000000000006,"Diabetes_Avg":27.475,"is_uae":false},{"Country":"Costa Rica","Region":"Americas","Year":2014,"BMI_Avg":25.22,"Diabetes_Avg":8.879999999999999,"is_uae":false},{"Country":"Cote d'Ivoire","Region":"Africa","Year":2014,"BMI_Avg":10.11,"Diabetes_Avg":6.824999999999999,"is_uae":false},{"Country":"Croatia","Region":"Europe","Year":2014,"BMI_Avg":24.24,"Diabetes_Avg":7.34,"is_uae":false},{"Country":"Cuba","Region":"Americas","Year":2014,"BMI_Avg":24.564999999999998,"Diabetes_Avg":8.43,"is_uae":false},{"Country":"Cyprus","Region":"Europe","Year":2014,"BMI_Avg":21.86,"Diabetes_Avg":6.975,"is_uae":false},{"Country":"Czech Republic","Region":"Europe","Year":2014,"BMI_Avg":26.155,"Diabetes_Avg":7.529999999999999,"is_uae":false},{"Country":"DR Congo","Region":"Africa","Year":2014,"BMI_Avg":6.305,"Diabetes_Avg":6.145,"is_uae":false},{"Country":"Denmark","Region":"Europe","Year":2014,"BMI_Avg":19.62,"Diabetes_Avg":4.33,"is_uae":false},{"Country":"Djibouti","Region":"Africa","Year":2014,"BMI_Avg":13.395,"Diabetes_Avg":8.115,"is_uae":false},{"Country":"Dominica","Region":"Americas","Year":2014,"BMI_Avg":27.575000000000003,"Diabetes_Avg":11.030000000000001,"is_uae":false},{"Country":"Dominican Republic","Region":"Americas","Year":2014,"BMI_Avg":27.015,"Diabetes_Avg":10.035,"is_uae":false},{"Country":"Ecuador","Region":"Americas","Year":2014,"BMI_Avg":19.595,"Diabetes_Avg":7.965,"is_uae":false},{"Country":"Egypt","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":31.565,"Diabetes_Avg":17.905,"is_uae":false},{"Country":"El Salvador","Region":"Americas","Year":2014,"BMI_Avg":23.619999999999997,"Diabetes_Avg":9.98,"is_uae":false},{"Country":"Equatorial Guinea","Region":"Africa","Year":2014,"BMI_Avg":7.925,"Diabetes_Avg":9.34,"is_uae":false},{"Country":"Eritrea","Region":"Africa","Year":2014,"BMI_Avg":4.545,"Diabetes_Avg":5.505,"is_uae":false},{"Country":"Estonia","Region":"Europe","Year":2014,"BMI_Avg":21.325000000000003,"Diabetes_Avg":7.125,"is_uae":false},{"Country":"Ethiopia","Region":"Africa","Year":2014,"BMI_Avg":4.154999999999999,"Diabetes_Avg":5.41,"is_uae":false},{"Country":"Fiji","Region":"Western Pacific","Year":2014,"BMI_Avg":29.985,"Diabetes_Avg":17.415,"is_uae":false},{"Country":"Finland","Region":"Europe","Year":2014,"BMI_Avg":22.255000000000003,"Diabetes_Avg":5.36,"is_uae":false},{"Country":"France","Region":"Europe","Year":2014,"BMI_Avg":21.619999999999997,"Diabetes_Avg":5.945,"is_uae":false},{"Country":"French Polynesia","Region":"Western Pacific","Year":2014,"BMI_Avg":51.835,"Diabetes_Avg":20.78,"is_uae":false},{"Country":"Gabon","Region":"Africa","Year":2014,"BMI_Avg":14.82,"Diabetes_Avg":9.995000000000001,"is_uae":false},{"Country":"Gambia","Region":"Africa","Year":2014,"BMI_Avg":9.85,"Diabetes_Avg":8.684999999999999,"is_uae":false},{"Country":"Georgia","Region":"Europe","Year":2014,"BMI_Avg":21.03,"Diabetes_Avg":12.67,"is_uae":false},{"Country":"Germany","Region":"Europe","Year":2014,"BMI_Avg":22.310000000000002,"Diabetes_Avg":4.96,"is_uae":false},{"Country":"Ghana","Region":"Africa","Year":2014,"BMI_Avg":10.275,"Diabetes_Avg":6.505,"is_uae":false},{"Country":"Greece","Region":"Europe","Year":2014,"BMI_Avg":24.87,"Diabetes_Avg":6.635,"is_uae":false},{"Country":"Greenland","Region":"Europe","Year":2014,"BMI_Avg":22.735,"Diabetes_Avg":5.085,"is_uae":false},{"Country":"Grenada","Region":"Americas","Year":2014,"BMI_Avg":20.875,"Diabetes_Avg":11.030000000000001,"is_uae":false},{"Country":"Guatemala","Region":"Americas","Year":2014,"BMI_Avg":20.384999999999998,"Diabetes_Avg":9.645,"is_uae":false},{"Country":"Guinea","Region":"Africa","Year":2014,"BMI_Avg":7.275,"Diabetes_Avg":6.4,"is_uae":false},{"Country":"Guinea Bissau","Region":"Africa","Year":2014,"BMI_Avg":8.945,"Diabetes_Avg":7.1,"is_uae":false},{"Country":"Guyana","Region":"Americas","Year":2014,"BMI_Avg":19.435000000000002,"Diabetes_Avg":10.83,"is_uae":false},{"Country":"Haiti","Region":"Americas","Year":2014,"BMI_Avg":21.634999999999998,"Diabetes_Avg":8.66,"is_uae":false},{"Country":"Honduras","Region":"Americas","Year":2014,"BMI_Avg":20.810000000000002,"Diabetes_Avg":9.23,"is_uae":false},{"Country":"Hungary","Region":"Europe","Year":2014,"BMI_Avg":26.37,"Diabetes_Avg":7.795,"is_uae":false},{"Country":"Iceland","Region":"Europe","Year":2014,"BMI_Avg":21.875,"Diabetes_Avg":5.895,"is_uae":false},{"Country":"India","Region":"South-East Asia","Year":2014,"BMI_Avg":3.6799999999999997,"Diabetes_Avg":8.690000000000001,"is_uae":false},{"Country":"Indonesia","Region":"South-East Asia","Year":2014,"BMI_Avg":6.379999999999999,"Diabetes_Avg":7.7,"is_uae":false},{"Country":"Iran","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":25.455000000000002,"Diabetes_Avg":12.125,"is_uae":false},{"Country":"Iraq","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":30.07,"Diabetes_Avg":17.36,"is_uae":false},{"Country":"Ireland","Region":"Europe","Year":2014,"BMI_Avg":24.939999999999998,"Diabetes_Avg":6.225,"is_uae":false},{"Country":"Israel","Region":"Europe","Year":2014,"BMI_Avg":26.375,"Diabetes_Avg":6.425,"is_uae":false},{"Country":"Italy","Region":"Europe","Year":2014,"BMI_Avg":20.020000000000003,"Diabetes_Avg":5.835,"is_uae":false},{"Country":"Jamaica","Region":"Americas","Year":2014,"BMI_Avg":24.045,"Diabetes_Avg":11.844999999999999,"is_uae":false},{"Country":"Japan","Region":"Western Pacific","Year":2014,"BMI_Avg":4.085,"Diabetes_Avg":6.68,"is_uae":false},{"Country":"Jordan","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":35.66,"Diabetes_Avg":16.845,"is_uae":false},{"Country":"Kazakhstan","Region":"Europe","Year":2014,"BMI_Avg":20.5,"Diabetes_Avg":11.864999999999998,"is_uae":false},{"Country":"Kenya","Region":"Africa","Year":2014,"BMI_Avg":6.6450000000000005,"Diabetes_Avg":5.99,"is_uae":false},{"Country":"Kiribati","Region":"Western Pacific","Year":2014,"BMI_Avg":46.14,"Diabetes_Avg":22.305,"is_uae":false},{"Country":"Kuwait","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":39.6,"Diabetes_Avg":19.64,"is_uae":false},{"Country":"Kyrgyzstan","Region":"Europe","Year":2014,"BMI_Avg":15.899999999999999,"Diabetes_Avg":10.375,"is_uae":false},{"Country":"Lao PDR","Region":"Western Pacific","Year":2014,"BMI_Avg":4.79,"Diabetes_Avg":7.66,"is_uae":false},{"Country":"Latvia","Region":"Europe","Year":2014,"BMI_Avg":23.605,"Diabetes_Avg":7.215,"is_uae":false},{"Country":"Lebanon","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":32.28,"Diabetes_Avg":13.355,"is_uae":false},{"Country":"Lesotho","Region":"Africa","Year":2014,"BMI_Avg":15.34,"Diabetes_Avg":8.58,"is_uae":false},{"Country":"Liberia","Region":"Africa","Year":2014,"BMI_Avg":9.535,"Diabetes_Avg":7.695,"is_uae":false},{"Country":"Libya","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":32.245,"Diabetes_Avg":15.895,"is_uae":false},{"Country":"Lithuania","Region":"Europe","Year":2014,"BMI_Avg":26.28,"Diabetes_Avg":8.004999999999999,"is_uae":false},{"Country":"Luxembourg","Region":"Europe","Year":2014,"BMI_Avg":22.560000000000002,"Diabetes_Avg":5.435,"is_uae":false},{"Country":"Macedonia (TFYR)","Region":"Europe","Year":2014,"BMI_Avg":22.384999999999998,"Diabetes_Avg":7.195,"is_uae":false},{"Country":"Madagascar","Region":"Africa","Year":2014,"BMI_Avg":4.95,"Diabetes_Avg":5.550000000000001,"is_uae":false},{"Country":"Malawi","Region":"Africa","Year":2014,"BMI_Avg":5.3950000000000005,"Diabetes_Avg":6.3100000000000005,"is_uae":false},{"Country":"Malaysia","Region":"Western Pacific","Year":2014,"BMI_Avg":14.780000000000001,"Diabetes_Avg":11.085,"is_uae":false},{"Country":"Maldives","Region":"South-East Asia","Year":2014,"BMI_Avg":7.984999999999999,"Diabetes_Avg":10.89,"is_uae":false},{"Country":"Mali","Region":"Africa","Year":2014,"BMI_Avg":8.035,"Diabetes_Avg":7.369999999999999,"is_uae":false},{"Country":"Malta","Region":"Europe","Year":2014,"BMI_Avg":29.14,"Diabetes_Avg":7.715,"is_uae":false},{"Country":"Marshall Islands","Region":"Western Pacific","Year":2014,"BMI_Avg":53.34,"Diabetes_Avg":21.115000000000002,"is_uae":false},{"Country":"Mauritania","Region":"Africa","Year":2014,"BMI_Avg":12.2,"Diabetes_Avg":8.93,"is_uae":false},{"Country":"Mauritius","Region":"Africa","Year":2014,"BMI_Avg":10.46,"Diabetes_Avg":12.975,"is_uae":false},{"Country":"Mexico","Region":"Americas","Year":2014,"BMI_Avg":28.464999999999996,"Diabetes_Avg":11.2,"is_uae":false},{"Country":"Micronesia (Federated States of)","Region":"Western Pacific","Year":2014,"BMI_Avg":45.845,"Diabetes_Avg":21.94,"is_uae":false},{"Country":"Moldova","Region":"Europe","Year":2014,"BMI_Avg":18.67,"Diabetes_Avg":8.094999999999999,"is_uae":false},{"Country":"Mongolia","Region":"Western Pacific","Year":2014,"BMI_Avg":19.865000000000002,"Diabetes_Avg":11.68,"is_uae":false},{"Country":"Montenegro","Region":"Europe","Year":2014,"BMI_Avg":23.255000000000003,"Diabetes_Avg":7.11,"is_uae":false},{"Country":"Morocco","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":25.395,"Diabetes_Avg":13.719999999999999,"is_uae":false},{"Country":"Mozambique","Region":"Africa","Year":2014,"BMI_Avg":6.64,"Diabetes_Avg":6.365,"is_uae":false},{"Country":"Myanmar","Region":"South-East Asia","Year":2014,"BMI_Avg":5.255,"Diabetes_Avg":7.395,"is_uae":false},{"Country":"Namibia","Region":"Africa","Year":2014,"BMI_Avg":16.02,"Diabetes_Avg":7.43,"is_uae":false},{"Country":"Nauru","Region":"Western Pacific","Year":2014,"BMI_Avg":61.65,"Diabetes_Avg":29.24,"is_uae":false},{"Country":"Nepal","Region":"South-East Asia","Year":2014,"BMI_Avg":3.7750000000000004,"Diabetes_Avg":10.59,"is_uae":false},{"Country":"Netherlands","Region":"Europe","Year":2014,"BMI_Avg":20.295,"Diabetes_Avg":4.35,"is_uae":false},{"Country":"New Zealand","Region":"Western Pacific","Year":2014,"BMI_Avg":30.575,"Diabetes_Avg":6.93,"is_uae":false},{"Country":"Nicaragua","Region":"Americas","Year":2014,"BMI_Avg":23.185000000000002,"Diabetes_Avg":10.100000000000001,"is_uae":false},{"Country":"Niger","Region":"Africa","Year":2014,"BMI_Avg":5.300000000000001,"Diabetes_Avg":5.630000000000001,"is_uae":false},{"Country":"Nigeria","Region":"Africa","Year":2014,"BMI_Avg":8.42,"Diabetes_Avg":6.15,"is_uae":false},{"Country":"Niue","Region":"Western Pacific","Year":2014,"BMI_Avg":49.925,"Diabetes_Avg":27.085,"is_uae":false},{"Country":"North Korea","Region":"South-East Asia","Year":2014,"BMI_Avg":6.505,"Diabetes_Avg":5.835,"is_uae":false},{"Country":"Norway","Region":"Europe","Year":2014,"BMI_Avg":23.009999999999998,"Diabetes_Avg":5.055,"is_uae":false},{"Country":"Occupied Palestinian Territory","Region":"Other","Year":2014,"BMI_Avg":32.43,"Diabetes_Avg":16.990000000000002,"is_uae":false},{"Country":"Oman","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":27.92,"Diabetes_Avg":13.325,"is_uae":false},{"Country":"Pakistan","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":8.21,"Diabetes_Avg":12.355,"is_uae":false},{"Country":"Palau","Region":"Western Pacific","Year":2014,"BMI_Avg":55.735,"Diabetes_Avg":23.165,"is_uae":false},{"Country":"Panama","Region":"Americas","Year":2014,"BMI_Avg":22.475,"Diabetes_Avg":9.335,"is_uae":false},{"Country":"Papua New Guinea","Region":"Western Pacific","Year":2014,"BMI_Avg":20.810000000000002,"Diabetes_Avg":14.84,"is_uae":false},{"Country":"Paraguay","Region":"Americas","Year":2014,"BMI_Avg":19.975,"Diabetes_Avg":8.14,"is_uae":false},{"Country":"Peru","Region":"Americas","Year":2014,"BMI_Avg":19.57,"Diabetes_Avg":7.655,"is_uae":false},{"Country":"Philippines","Region":"Western Pacific","Year":2014,"BMI_Avg":6.1,"Diabetes_Avg":7.16,"is_uae":false},{"Country":"Poland","Region":"Europe","Year":2014,"BMI_Avg":23.105,"Diabetes_Avg":7.6850000000000005,"is_uae":false},{"Country":"Portugal","Region":"Europe","Year":2014,"BMI_Avg":20.645,"Diabetes_Avg":6.859999999999999,"is_uae":false},{"Country":"Puerto Rico","Region":"Other","Year":2014,"BMI_Avg":34.3,"Diabetes_Avg":13.2,"is_uae":false},{"Country":"Qatar","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":37.855000000000004,"Diabetes_Avg":18.855,"is_uae":false},{"Country":"Romania","Region":"Europe","Year":2014,"BMI_Avg":22.39,"Diabetes_Avg":6.835,"is_uae":false},{"Country":"Russian Federation","Region":"Other","Year":2014,"BMI_Avg":22.875,"Diabetes_Avg":7.6850000000000005,"is_uae":false},{"Country":"Rwanda","Region":"Africa","Year":2014,"BMI_Avg":5.285,"Diabetes_Avg":4.415,"is_uae":false},{"Country":"Saint Kitts and Nevis","Region":"Americas","Year":2014,"BMI_Avg":22.305,"Diabetes_Avg":14.495000000000001,"is_uae":false},{"Country":"Saint Lucia","Region":"Americas","Year":2014,"BMI_Avg":19.045,"Diabetes_Avg":14.440000000000001,"is_uae":false},{"Country":"Saint Vincent and the Grenadines","Region":"Americas","Year":2014,"BMI_Avg":23.4,"Diabetes_Avg":10.594999999999999,"is_uae":false},{"Country":"Samoa","Region":"Western Pacific","Year":2014,"BMI_Avg":47.655,"Diabetes_Avg":24.615000000000002,"is_uae":false},{"Country":"Sao Tome and Principe","Region":"Africa","Year":2014,"BMI_Avg":11.705,"Diabetes_Avg":8.065,"is_uae":false},{"Country":"Saudi Arabia","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":36.415,"Diabetes_Avg":17.310000000000002,"is_uae":false},{"Country":"Senegal","Region":"Africa","Year":2014,"BMI_Avg":8.175,"Diabetes_Avg":7.414999999999999,"is_uae":false},{"Country":"Serbia","Region":"Europe","Year":2014,"BMI_Avg":21.5,"Diabetes_Avg":6.869999999999999,"is_uae":false},{"Country":"Seychelles","Region":"Africa","Year":2014,"BMI_Avg":13.77,"Diabetes_Avg":10.365,"is_uae":false},{"Country":"Sierra Leone","Region":"Africa","Year":2014,"BMI_Avg":8.24,"Diabetes_Avg":6.869999999999999,"is_uae":false},{"Country":"Singapore","Region":"Western Pacific","Year":2014,"BMI_Avg":6.074999999999999,"Diabetes_Avg":7.949999999999999,"is_uae":false},{"Country":"Slovakia","Region":"Europe","Year":2014,"BMI_Avg":20.53,"Diabetes_Avg":7.24,"is_uae":false},{"Country":"Slovenia","Region":"Europe","Year":2014,"BMI_Avg":20.235,"Diabetes_Avg":7.135,"is_uae":false},{"Country":"Solomon Islands","Region":"Western Pacific","Year":2014,"BMI_Avg":22.045,"Diabetes_Avg":13.865,"is_uae":false},{"Country":"Somalia","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":7.795,"Diabetes_Avg":6.845000000000001,"is_uae":false},{"Country":"South Africa","Region":"Africa","Year":2014,"BMI_Avg":27.31,"Diabetes_Avg":11.15,"is_uae":false},{"Country":"South Korea","Region":"Western Pacific","Year":2014,"BMI_Avg":4.525,"Diabetes_Avg":8.015,"is_uae":false},{"Country":"Spain","Region":"Europe","Year":2014,"BMI_Avg":23.905,"Diabetes_Avg":7.109999999999999,"is_uae":false},{"Country":"Sri Lanka","Region":"South-East Asia","Year":2014,"BMI_Avg":4.735,"Diabetes_Avg":7.365,"is_uae":false},{"Country":"Sudan","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":7.835,"Diabetes_Avg":8.89,"is_uae":false},{"Country":"Suriname","Region":"Americas","Year":2014,"BMI_Avg":26.259999999999998,"Diabetes_Avg":12.245,"is_uae":false},{"Country":"Swaziland","Region":"Africa","Year":2014,"BMI_Avg":15.555,"Diabetes_Avg":9.56,"is_uae":false},{"Country":"Sweden","Region":"Europe","Year":2014,"BMI_Avg":20.5,"Diabetes_Avg":4.9,"is_uae":false},{"Country":"Switzerland","Region":"Europe","Year":2014,"BMI_Avg":19.48,"Diabetes_Avg":4.0649999999999995,"is_uae":false},{"Country":"Syrian Arab Republic","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":27.464999999999996,"Diabetes_Avg":14.629999999999999,"is_uae":false},{"Country":"Taiwan","Region":"Western Pacific","Year":2014,"BMI_Avg":7.414999999999999,"Diabetes_Avg":7.0,"is_uae":false},{"Country":"Tajikistan","Region":"Europe","Year":2014,"BMI_Avg":13.67,"Diabetes_Avg":10.09,"is_uae":false},{"Country":"Tanzania","Region":"Africa","Year":2014,"BMI_Avg":7.89,"Diabetes_Avg":6.085,"is_uae":false},{"Country":"Thailand","Region":"South-East Asia","Year":2014,"BMI_Avg":9.14,"Diabetes_Avg":8.524999999999999,"is_uae":false},{"Country":"Timor-Leste","Region":"South-East Asia","Year":2014,"BMI_Avg":3.485,"Diabetes_Avg":5.449999999999999,"is_uae":false},{"Country":"Togo","Region":"Africa","Year":2014,"BMI_Avg":7.855,"Diabetes_Avg":7.140000000000001,"is_uae":false},{"Country":"Tokelau","Region":"Western Pacific","Year":2014,"BMI_Avg":45.09,"Diabetes_Avg":26.744999999999997,"is_uae":false},{"Country":"Tonga","Region":"Western Pacific","Year":2014,"BMI_Avg":48.010000000000005,"Diabetes_Avg":24.134999999999998,"is_uae":false},{"Country":"Trinidad and Tobago","Region":"Americas","Year":2014,"BMI_Avg":17.955,"Diabetes_Avg":11.685,"is_uae":false},{"Country":"Tunisia","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":26.515,"Diabetes_Avg":12.495000000000001,"is_uae":false},{"Country":"Turkey","Region":"Europe","Year":2014,"BMI_Avg":31.615000000000002,"Diabetes_Avg":13.61,"is_uae":false},{"Country":"Turkmenistan","Region":"Europe","Year":2014,"BMI_Avg":17.97,"Diabetes_Avg":12.165,"is_uae":false},{"Country":"Tuvalu","Region":"Western Pacific","Year":2014,"BMI_Avg":51.695,"Diabetes_Avg":23.775,"is_uae":false},{"Country":"Uganda","Region":"Africa","Year":2014,"BMI_Avg":4.949999999999999,"Diabetes_Avg":4.57,"is_uae":false},{"Country":"Ukraine","Region":"Europe","Year":2014,"BMI_Avg":23.98,"Diabetes_Avg":7.295,"is_uae":false},{"Country":"United Arab Emirates","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":34.205,"Diabetes_Avg":15.21,"is_uae":true},{"Country":"United Kingdom","Region":"Europe","Year":2014,"BMI_Avg":27.55,"Diabetes_Avg":5.785,"is_uae":false},{"Country":"United States of America","Region":"Americas","Year":2014,"BMI_Avg":35.975,"Diabetes_Avg":7.305,"is_uae":false},{"Country":"Uruguay","Region":"Americas","Year":2014,"BMI_Avg":27.78,"Diabetes_Avg":9.46,"is_uae":false},{"Country":"Uzbekistan","Region":"Europe","Year":2014,"BMI_Avg":15.969999999999999,"Diabetes_Avg":10.59,"is_uae":false},{"Country":"Vanuatu","Region":"Western Pacific","Year":2014,"BMI_Avg":24.744999999999997,"Diabetes_Avg":15.855,"is_uae":false},{"Country":"Venezuela","Region":"Americas","Year":2014,"BMI_Avg":25.66,"Diabetes_Avg":9.46,"is_uae":false},{"Country":"Viet Nam","Region":"Western Pacific","Year":2014,"BMI_Avg":1.8849999999999998,"Diabetes_Avg":5.34,"is_uae":false},{"Country":"Yemen","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":16.39,"Diabetes_Avg":11.365,"is_uae":false},{"Country":"Zambia","Region":"Africa","Year":2014,"BMI_Avg":7.685,"Diabetes_Avg":6.575,"is_uae":false},{"Country":"Zimbabwe","Region":"Africa","Year":2014,"BMI_Avg":14.969999999999999,"Diabetes_Avg":7.035,"is_uae":false}],"data-8f11f929b0901c971df5e5ef6faf6e03":[{"Country":"United Arab Emirates","Region":"Eastern Mediterranean","Year":2014,"BMI_Avg":34.205,"Diabetes_Avg":15.21,"is_uae":true}]}},"title":"Chart 4: Obesity vs Diabetes Scatter","desc":"Correlation between obesity and diabetes prevalence by country (2014)"},"chart5":{"spec":{"config":{"view":{"continuousWidth":300,"continuousHeight":300}},"layer":[{"mark":{"type":"rect"},"encoding":{"color":{"field":"Avg_BP","scale":{"scheme":"reds"},"title":"Mean BP Prevalence (%)","type":"quantitative"},"tooltip":[{"field":"Region","type":"nominal"},{"field":"Decade","type":"nominal"},{"field":"Avg_BP","format":".2f","type":"quantitative"}],"x":{"field":"Decade","sort":["1980s","1990s","2000s","2010s"],"title":"Decade","type":"ordinal"},"y":{"field":"Region","sort":"-x","title":"","type":"nominal"}},"title":"Mean Hypertension Prevalence by Region & Decade (%)"},{"mark":{"type":"text","baseline":"middle","fontSize":11},"encoding":{"color":{"condition":{"test":"(datum.Avg_BP > 38)","value":"white"},"value":"black"},"text":{"field":"Avg_BP","format":".1f","type":"quantitative"},"tooltip":[{"field":"Region","type":"nominal"},{"field":"Decade","type":"nominal"},{"field":"Avg_BP","format":".2f","type":"quantitative"}],"x":{"field":"Decade","sort":["1980s","1990s","2000s","2010s"],"title":"Decade","type":"ordinal"},"y":{"field":"Region","sort":"-x","title":"","type":"nominal"}},"title":"Mean Hypertension Prevalence by Region & Decade (%)"}],"data":{"name":"data-a45ab9df43ff79ea5966bd87d4944488"},"height":300,"title":"Mean Hypertension Prevalence by Region & Decade (%)","width":"container","$schema":"https://vega.github.io/schema/vega-lite/v5.20.1.json","datasets":{"data-a45ab9df43ff79ea5966bd87d4944488":[{"Region":"Africa","Decade":"1980s","Avg_BP":28.797},{"Region":"Africa","Decade":"1990s","Avg_BP":29.566489361702125},{"Region":"Africa","Decade":"2000s","Avg_BP":29.174797872340427},{"Region":"Africa","Decade":"2010s","Avg_BP":28.553489361702127},{"Region":"Americas","Decade":"1980s","Avg_BP":27.95623611111111},{"Region":"Americas","Decade":"1990s","Avg_BP":25.713527777777777},{"Region":"Americas","Decade":"2000s","Avg_BP":23.307555555555556},{"Region":"Americas","Decade":"2010s","Avg_BP":21.662305555555555},{"Region":"Eastern Mediterranean","Decade":"1980s","Avg_BP":32.149725},{"Region":"Eastern Mediterranean","Decade":"1990s","Avg_BP":30.073025},{"Region":"Eastern Mediterranean","Decade":"2000s","Avg_BP":27.560050000000004},{"Region":"Eastern Mediterranean","Decade":"2010s","Avg_BP":25.5458},{"Region":"Europe","Decade":"1980s","Avg_BP":34.29529411764706},{"Region":"Europe","Decade":"1990s","Avg_BP":31.224039215686275},{"Region":"Europe","Decade":"2000s","Avg_BP":27.600254901960785},{"Region":"Europe","Decade":"2010s","Avg_BP":25.063450980392158},{"Region":"Other","Decade":"1980s","Avg_BP":34.976166666666664},{"Region":"Other","Decade":"1990s","Avg_BP":31.556833333333334},{"Region":"Other","Decade":"2000s","Avg_BP":26.960833333333333},{"Region":"Other","Decade":"2010s","Avg_BP":23.91433333333333},{"Region":"South-East Asia","Decade":"1980s","Avg_BP":22.831045454545453},{"Region":"South-East Asia","Decade":"1990s","Avg_BP":23.826954545454544},{"Region":"South-East Asia","Decade":"2000s","Avg_BP":24.5335},{"Region":"South-East Asia","Decade":"2010s","Avg_BP":24.661454545454546},{"Region":"Western Pacific","Decade":"1980s","Avg_BP":25.5415625},{"Region":"Western Pacific","Decade":"1990s","Avg_BP":24.194859375},{"Region":"Western Pacific","Decade":"2000s","Avg_BP":22.92615625},{"Region":"Western Pacific","Decade":"2010s","Avg_BP":21.990781249999998}]}},"title":"Chart 5: Hypertension Heatmap \u2014 Region \u00d7 Decade","desc":"Mean hypertension by WHO region and decade"},"chart6":{"spec":{"config":{"view":{"continuousWidth":300,"continuousHeight":300}},"layer":[{"mark":{"type":"geoshape","fill":"#e0e0e0","stroke":"white","strokeWidth":0.3},"projection":{"type":"naturalEarth1"}},{"mark":{"type":"geoshape","stroke":"white","strokeWidth":0.3},"encoding":{"color":{"field":"Diabetes_Prevalence","scale":{"scheme":"orangered"},"title":"Diabetes Prevalence (%)","type":"quantitative"},"tooltip":[{"field":"Country","type":"nominal"},{"field":"Diabetes_Prevalence","format":".1f","type":"quantitative"}]},"projection":{"type":"naturalEarth1"},"transform":[{"lookup":"id","from":{"data":{"name":"data-c05244426c2c40645da075ab1453cf63"},"key":"id","fields":["Diabetes_Prevalence","Country"]}}]}],"data":{"url":"https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/world-110m.json","format":{"feature":"countries","type":"topojson"}},"height":470,"title":"Global Diabetes Prevalence by Country (2014, Both Sexes Mean)","width":"container","$schema":"https://vega.github.io/schema/vega-lite/v5.20.1.json","datasets":{"data-c05244426c2c40645da075ab1453cf63":[{"Country":"Afghanistan","Diabetes_Prevalence":11.91,"id":4},{"Country":"Albania","Diabetes_Prevalence":7.385,"id":8},{"Country":"Algeria","Diabetes_Prevalence":12.425,"id":12},{"Country":"American Samoa","Diabetes_Prevalence":31.84,"id":16},{"Country":"Andorra","Diabetes_Prevalence":6.955,"id":20},{"Country":"Angola","Diabetes_Prevalence":8.175,"id":24},{"Country":"Antigua and Barbuda","Diabetes_Prevalence":11.465,"id":28},{"Country":"Argentina","Diabetes_Prevalence":9.670000000000002,"id":32},{"Country":"Armenia","Diabetes_Prevalence":11.485,"id":51},{"Country":"Australia","Diabetes_Prevalence":5.895,"id":36},{"Country":"Austria","Diabetes_Prevalence":4.315,"id":40},{"Country":"Azerbaijan","Diabetes_Prevalence":12.3,"id":31},{"Country":"Bahamas","Diabetes_Prevalence":12.435,"id":44},{"Country":"Bahrain","Diabetes_Prevalence":11.325,"id":48},{"Country":"Bangladesh","Diabetes_Prevalence":9.77,"id":50},{"Country":"Barbados","Diabetes_Prevalence":12.11,"id":52},{"Country":"Belarus","Diabetes_Prevalence":7.779999999999999,"id":112},{"Country":"Belgium","Diabetes_Prevalence":4.5649999999999995,"id":56},{"Country":"Belize","Diabetes_Prevalence":12.59,"id":84},{"Country":"Benin","Diabetes_Prevalence":7.1899999999999995,"id":204},{"Country":"Bermuda","Diabetes_Prevalence":14.825,"id":60},{"Country":"Bhutan","Diabetes_Prevalence":11.725,"id":64},{"Country":"Bolivia","Diabetes_Prevalence":7.949999999999999,"id":68},{"Country":"Bosnia and Herzegovina","Diabetes_Prevalence":7.4350000000000005,"id":70},{"Country":"Botswana","Diabetes_Prevalence":8.52,"id":72},{"Country":"Brazil","Diabetes_Prevalence":8.24,"id":76},{"Country":"Brunei Darussalam","Diabetes_Prevalence":9.445,"id":96},{"Country":"Bulgaria","Diabetes_Prevalence":7.66,"id":100},{"Country":"Burkina Faso","Diabetes_Prevalence":6.41,"id":854},{"Country":"Burundi","Diabetes_Prevalence":4.165,"id":108},{"Country":"Cabo Verde","Diabetes_Prevalence":8.545,"id":132},{"Country":"Cambodia","Diabetes_Prevalence":7.154999999999999,"id":116},{"Country":"Cameroon","Diabetes_Prevalence":6.71,"id":120},{"Country":"Canada","Diabetes_Prevalence":5.495,"id":124},{"Country":"Central African Republic","Diabetes_Prevalence":7.795,"id":140},{"Country":"Chad","Diabetes_Prevalence":7.02,"id":148},{"Country":"Chile","Diabetes_Prevalence":10.495000000000001,"id":152},{"Country":"China","Diabetes_Prevalence":8.77,"id":156},{"Country":"China (Hong Kong SAR)","Diabetes_Prevalence":7.55,"id":344},{"Country":"Colombia","Diabetes_Prevalence":8.52,"id":170},{"Country":"Comoros","Diabetes_Prevalence":7.9399999999999995,"id":174},{"Country":"Congo","Diabetes_Prevalence":7.67,"id":178},{"Country":"Cook Islands","Diabetes_Prevalence":27.475,"id":184},{"Country":"Costa Rica","Diabetes_Prevalence":8.879999999999999,"id":188},{"Country":"Cote d'Ivoire","Diabetes_Prevalence":6.824999999999999,"id":384},{"Country":"Croatia","Diabetes_Prevalence":7.34,"id":191},{"Country":"Cuba","Diabetes_Prevalence":8.43,"id":192},{"Country":"Cyprus","Diabetes_Prevalence":6.975,"id":196},{"Country":"Czech Republic","Diabetes_Prevalence":7.529999999999999,"id":203},{"Country":"DR Congo","Diabetes_Prevalence":6.145,"id":180},{"Country":"Denmark","Diabetes_Prevalence":4.33,"id":208},{"Country":"Djibouti","Diabetes_Prevalence":8.115,"id":262},{"Country":"Dominica","Diabetes_Prevalence":11.030000000000001,"id":212},{"Country":"Dominican Republic","Diabetes_Prevalence":10.035,"id":214},{"Country":"Ecuador","Diabetes_Prevalence":7.965,"id":218},{"Country":"Egypt","Diabetes_Prevalence":17.905,"id":818},{"Country":"El Salvador","Diabetes_Prevalence":9.98,"id":222},{"Country":"Equatorial Guinea","Diabetes_Prevalence":9.34,"id":226},{"Country":"Eritrea","Diabetes_Prevalence":5.505,"id":232},{"Country":"Estonia","Diabetes_Prevalence":7.125,"id":233},{"Country":"Ethiopia","Diabetes_Prevalence":5.41,"id":231},{"Country":"Fiji","Diabetes_Prevalence":17.415,"id":242},{"Country":"Finland","Diabetes_Prevalence":5.36,"id":246},{"Country":"France","Diabetes_Prevalence":5.945,"id":250},{"Country":"French Polynesia","Diabetes_Prevalence":20.78,"id":258},{"Country":"Gabon","Diabetes_Prevalence":9.995000000000001,"id":266},{"Country":"Gambia","Diabetes_Prevalence":8.684999999999999,"id":270},{"Country":"Georgia","Diabetes_Prevalence":12.67,"id":268},{"Country":"Germany","Diabetes_Prevalence":4.96,"id":276},{"Country":"Ghana","Diabetes_Prevalence":6.505,"id":288},{"Country":"Greece","Diabetes_Prevalence":6.635,"id":300},{"Country":"Greenland","Diabetes_Prevalence":5.085,"id":304},{"Country":"Grenada","Diabetes_Prevalence":11.030000000000001,"id":308},{"Country":"Guatemala","Diabetes_Prevalence":9.645,"id":320},{"Country":"Guinea","Diabetes_Prevalence":6.4,"id":324},{"Country":"Guinea Bissau","Diabetes_Prevalence":7.1,"id":624},{"Country":"Guyana","Diabetes_Prevalence":10.83,"id":328},{"Country":"Haiti","Diabetes_Prevalence":8.66,"id":332},{"Country":"Honduras","Diabetes_Prevalence":9.23,"id":340},{"Country":"Hungary","Diabetes_Prevalence":7.795,"id":348},{"Country":"Iceland","Diabetes_Prevalence":5.895,"id":352},{"Country":"India","Diabetes_Prevalence":8.690000000000001,"id":356},{"Country":"Indonesia","Diabetes_Prevalence":7.7,"id":360},{"Country":"Iran","Diabetes_Prevalence":12.125,"id":364},{"Country":"Iraq","Diabetes_Prevalence":17.36,"id":368},{"Country":"Ireland","Diabetes_Prevalence":6.225,"id":372},{"Country":"Israel","Diabetes_Prevalence":6.425,"id":376},{"Country":"Italy","Diabetes_Prevalence":5.835,"id":380},{"Country":"Jamaica","Diabetes_Prevalence":11.844999999999999,"id":388},{"Country":"Japan","Diabetes_Prevalence":6.68,"id":392},{"Country":"Jordan","Diabetes_Prevalence":16.845,"id":400},{"Country":"Kazakhstan","Diabetes_Prevalence":11.864999999999998,"id":398},{"Country":"Kenya","Diabetes_Prevalence":5.99,"id":404},{"Country":"Kiribati","Diabetes_Prevalence":22.305,"id":296},{"Country":"Kuwait","Diabetes_Prevalence":19.64,"id":414},{"Country":"Kyrgyzstan","Diabetes_Prevalence":10.375,"id":417},{"Country":"Lao PDR","Diabetes_Prevalence":7.66,"id":418},{"Country":"Latvia","Diabetes_Prevalence":7.215,"id":428},{"Country":"Lebanon","Diabetes_Prevalence":13.355,"id":422},{"Country":"Lesotho","Diabetes_Prevalence":8.58,"id":426},{"Country":"Liberia","Diabetes_Prevalence":7.695,"id":430},{"Country":"Libya","Diabetes_Prevalence":15.895,"id":434},{"Country":"Lithuania","Diabetes_Prevalence":8.004999999999999,"id":440},{"Country":"Luxembourg","Diabetes_Prevalence":5.435,"id":442},{"Country":"Macedonia (TFYR)","Diabetes_Prevalence":7.195,"id":807},{"Country":"Madagascar","Diabetes_Prevalence":5.550000000000001,"id":450},{"Country":"Malawi","Diabetes_Prevalence":6.3100000000000005,"id":454},{"Country":"Malaysia","Diabetes_Prevalence":11.085,"id":458},{"Country":"Maldives","Diabetes_Prevalence":10.89,"id":462},{"Country":"Mali","Diabetes_Prevalence":7.369999999999999,"id":466},{"Country":"Malta","Diabetes_Prevalence":7.715,"id":470},{"Country":"Marshall Islands","Diabetes_Prevalence":21.115000000000002,"id":584},{"Country":"Mauritania","Diabetes_Prevalence":8.93,"id":478},{"Country":"Mauritius","Diabetes_Prevalence":12.975,"id":480},{"Country":"Mexico","Diabetes_Prevalence":11.2,"id":484},{"Country":"Micronesia (Federated States of)","Diabetes_Prevalence":21.94,"id":583},{"Country":"Moldova","Diabetes_Prevalence":8.094999999999999,"id":498},{"Country":"Mongolia","Diabetes_Prevalence":11.68,"id":496},{"Country":"Montenegro","Diabetes_Prevalence":7.11,"id":499},{"Country":"Morocco","Diabetes_Prevalence":13.719999999999999,"id":504},{"Country":"Mozambique","Diabetes_Prevalence":6.365,"id":508},{"Country":"Myanmar","Diabetes_Prevalence":7.395,"id":104},{"Country":"Namibia","Diabetes_Prevalence":7.43,"id":516},{"Country":"Nauru","Diabetes_Prevalence":29.24,"id":520},{"Country":"Nepal","Diabetes_Prevalence":10.59,"id":524},{"Country":"Netherlands","Diabetes_Prevalence":4.35,"id":528},{"Country":"New Zealand","Diabetes_Prevalence":6.93,"id":554},{"Country":"Nicaragua","Diabetes_Prevalence":10.100000000000001,"id":558},{"Country":"Niger","Diabetes_Prevalence":5.630000000000001,"id":566},{"Country":"Nigeria","Diabetes_Prevalence":6.15,"id":566},{"Country":"Niue","Diabetes_Prevalence":27.085,"id":570},{"Country":"North Korea","Diabetes_Prevalence":5.835,"id":408},{"Country":"Norway","Diabetes_Prevalence":5.055,"id":578},{"Country":"Oman","Diabetes_Prevalence":13.325,"id":512},{"Country":"Pakistan","Diabetes_Prevalence":12.355,"id":586},{"Country":"Palau","Diabetes_Prevalence":23.165,"id":585},{"Country":"Panama","Diabetes_Prevalence":9.335,"id":591},{"Country":"Papua New Guinea","Diabetes_Prevalence":14.84,"id":598},{"Country":"Paraguay","Diabetes_Prevalence":8.14,"id":600},{"Country":"Peru","Diabetes_Prevalence":7.655,"id":604},{"Country":"Philippines","Diabetes_Prevalence":7.16,"id":608},{"Country":"Poland","Diabetes_Prevalence":7.6850000000000005,"id":616},{"Country":"Portugal","Diabetes_Prevalence":6.859999999999999,"id":620},{"Country":"Puerto Rico","Diabetes_Prevalence":13.2,"id":630},{"Country":"Qatar","Diabetes_Prevalence":18.855,"id":634},{"Country":"Romania","Diabetes_Prevalence":6.835,"id":642},{"Country":"Russian Federation","Diabetes_Prevalence":7.6850000000000005,"id":643},{"Country":"Rwanda","Diabetes_Prevalence":4.415,"id":646},{"Country":"Saint Kitts and Nevis","Diabetes_Prevalence":14.495000000000001,"id":659},{"Country":"Saint Lucia","Diabetes_Prevalence":14.440000000000001,"id":662},{"Country":"Saint Vincent and the Grenadines","Diabetes_Prevalence":10.594999999999999,"id":670},{"Country":"Samoa","Diabetes_Prevalence":24.615000000000002,"id":882},{"Country":"Sao Tome and Principe","Diabetes_Prevalence":8.065,"id":678},{"Country":"Saudi Arabia","Diabetes_Prevalence":17.310000000000002,"id":682},{"Country":"Senegal","Diabetes_Prevalence":7.414999999999999,"id":686},{"Country":"Serbia","Diabetes_Prevalence":6.869999999999999,"id":688},{"Country":"Seychelles","Diabetes_Prevalence":10.365,"id":690},{"Country":"Sierra Leone","Diabetes_Prevalence":6.869999999999999,"id":694},{"Country":"Singapore","Diabetes_Prevalence":7.949999999999999,"id":702},{"Country":"Slovakia","Diabetes_Prevalence":7.24,"id":703},{"Country":"Slovenia","Diabetes_Prevalence":7.135,"id":705},{"Country":"Solomon Islands","Diabetes_Prevalence":13.865,"id":90},{"Country":"Somalia","Diabetes_Prevalence":6.845000000000001,"id":706},{"Country":"South Africa","Diabetes_Prevalence":11.15,"id":710},{"Country":"South Korea","Diabetes_Prevalence":8.015,"id":410},{"Country":"Spain","Diabetes_Prevalence":7.109999999999999,"id":724},{"Country":"Sri Lanka","Diabetes_Prevalence":7.365,"id":144},{"Country":"Sudan","Diabetes_Prevalence":8.89,"id":729},{"Country":"Suriname","Diabetes_Prevalence":12.245,"id":740},{"Country":"Sweden","Diabetes_Prevalence":4.9,"id":752},{"Country":"Switzerland","Diabetes_Prevalence":4.0649999999999995,"id":756},{"Country":"Syrian Arab Republic","Diabetes_Prevalence":14.629999999999999,"id":760},{"Country":"Taiwan","Diabetes_Prevalence":7.0,"id":158},{"Country":"Tajikistan","Diabetes_Prevalence":10.09,"id":762},{"Country":"Tanzania","Diabetes_Prevalence":6.085,"id":834},{"Country":"Thailand","Diabetes_Prevalence":8.524999999999999,"id":764},{"Country":"Timor-Leste","Diabetes_Prevalence":5.449999999999999,"id":626},{"Country":"Togo","Diabetes_Prevalence":7.140000000000001,"id":768},{"Country":"Tokelau","Diabetes_Prevalence":26.744999999999997,"id":772},{"Country":"Tonga","Diabetes_Prevalence":24.134999999999998,"id":776},{"Country":"Trinidad and Tobago","Diabetes_Prevalence":11.685,"id":780},{"Country":"Tunisia","Diabetes_Prevalence":12.495000000000001,"id":788},{"Country":"Turkmenistan","Diabetes_Prevalence":12.165,"id":795},{"Country":"Tuvalu","Diabetes_Prevalence":23.775,"id":798},{"Country":"Uganda","Diabetes_Prevalence":4.57,"id":800},{"Country":"Ukraine","Diabetes_Prevalence":7.295,"id":804},{"Country":"United Arab Emirates","Diabetes_Prevalence":15.21,"id":784},{"Country":"United Kingdom","Diabetes_Prevalence":5.785,"id":826},{"Country":"United States of America","Diabetes_Prevalence":7.305,"id":840},{"Country":"Uruguay","Diabetes_Prevalence":9.46,"id":858},{"Country":"Uzbekistan","Diabetes_Prevalence":10.59,"id":860},{"Country":"Vanuatu","Diabetes_Prevalence":15.855,"id":548},{"Country":"Venezuela","Diabetes_Prevalence":9.46,"id":862},{"Country":"Viet Nam","Diabetes_Prevalence":5.34,"id":704},{"Country":"Yemen","Diabetes_Prevalence":11.365,"id":887},{"Country":"Zambia","Diabetes_Prevalence":6.575,"id":894},{"Country":"Zimbabwe","Diabetes_Prevalence":7.035,"id":716}]}},"title":"Chart 6: World Map \u2014 Diabetes 2014","desc":"Global diabetes prevalence choropleth for 2014"}};
+
+// ─── TABLE DATA ───────────────────────────────────────────────────────────────
+const TABLE_DATA = CHART_SPECS.chart4.spec.datasets["data-a62b392494d5f81ad9062412a95ba2fa"].map(d => ({
+  country: d.Country,
+  region: d.Region,
+  diabetes: d.Diabetes_Avg,
+  obesity: d.BMI_Avg,
+}));
+
+// Get BMI by sex from chart3 dataset
+const bmiSex = {};
+CHART_SPECS.chart3.spec.datasets["data-1dbf2b67c64df868329a941d4e5776d5"].forEach(d => {
+  if(!bmiSex[d.Country]) bmiSex[d.Country] = {};
+  bmiSex[d.Country][d.Sex] = d.BMI_Prevalence;
+});
+
+const REGION_CLASS = {
+  'Africa':'rb-africa','Americas':'rb-americas','Europe':'rb-europe',
+  'Eastern Mediterranean':'rb-em','South-East Asia':'rb-sea','Western Pacific':'rb-wp',
+  'Other':'rb-wp'
+};
+
+let currentSort = 'diabetes';
+let sortDir = -1; // -1 = desc
+let currentData = [...TABLE_DATA].sort((a,b) => b.diabetes - a.diabetes);
+
+function buildTable(data) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = data.map((d,i) => {
+    const womBMI = bmiSex[d.country]?.Women;
+    const menBMI = bmiSex[d.country]?.Men;
+    const diaClass = d.diabetes > 15 ? 'high' : d.diabetes < 6 ? 'low' : 'mid';
+    const obClass = d.obesity > 30 ? 'high' : d.obesity < 8 ? 'low' : 'mid';
+    return `<tr>
+      <td style="color:var(--muted);font-size:0.8rem">${i+1}</td>
+      <td class="country">${d.country}${d.country==='United Arab Emirates'?' 🇦🇪':''}</td>
+      <td><span class="region-badge ${REGION_CLASS[d.region]||'rb-wp'}">${d.region}</span></td>
+      <td class="${diaClass}">${d.diabetes.toFixed(1)}%</td>
+      <td class="${obClass}">${d.obesity.toFixed(1)}%</td>
+      <td>${womBMI!=null?womBMI.toFixed(1)+'%':'—'}</td>
+      <td>${menBMI!=null?menBMI.toFixed(1)+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const r = document.getElementById('region-filter').value;
+  const filtered = currentData.filter(d =>
+    d.country.toLowerCase().includes(q) && (!r || d.region === r)
+  );
+  buildTable(filtered);
+}
+
+function sortTable(field) {
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active-sort'));
+  if(currentSort === field) { sortDir *= -1; }
+  else { currentSort = field; sortDir = -1; }
+  event.target.classList.add('active-sort');
+  currentData.sort((a,b) => sortDir * (b[field] - a[field]));
+  filterTable();
+}
+
+// Build table on load
+buildTable(currentData);
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  renderCharts();
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+const rendered = new Set();
+
+function applyDarkTheme(spec) {
+  spec.config = spec.config || {};
+  spec.config.background = 'transparent';
+  const darkAxis = {labelColor:'#94A3B8',titleColor:'#94A3B8',gridColor:'#252A3A',domainColor:'#252A3A',tickColor:'#252A3A'};
+  spec.config.axis = {...(spec.config.axis||{}), ...darkAxis};
+  if(spec.layer) spec.layer.forEach(l => { if(l.encoding?.x) {} }); // apply to sublayers too
+  spec.config.legend = {labelColor:'#E2E8F0',titleColor:'#94A3B8',labelFontSize:12,...(spec.config.legend||{})};
+  spec.config.title = {color:'#F8FAFC',fontSize:14,fontWeight:600,...(spec.config.title||{})};
+  spec.config.header = {labelColor:'#CBD5E1',titleColor:'#F8FAFC',...(spec.config.header||{})};
+  spec.config.view = {stroke:'transparent',...(spec.config.view||{})};
+  return spec;
+}
+
+function renderChart(divId, specKey, w, h) {
+  if (rendered.has(divId)) return;
+  const el = document.getElementById(divId);
+  if (!el || !CHART_SPECS[specKey]) return;
+  const spec = applyDarkTheme(JSON.parse(JSON.stringify(CHART_SPECS[specKey].spec)));
+  if (w) spec.width = w;
+  if (h) spec.height = h;
+  if (w === 'container' || spec.width === 'container') {
+    spec.autosize = {type:'fit', contains:'padding'};
+  }
+  vegaEmbed(el, spec, {actions:false, renderer:'svg'})
+    .then(() => { rendered.add(divId); el.closest('.chart-wrap').style.minHeight = 'unset'; })
+    .catch(e => { el.innerHTML = '<p style="color:#888;padding:20px;font-size:0.8rem">Chart failed: ' + e.message + '</p>'; });
+}
+
+function renderCharts() {
+  const id = document.querySelector('.section.active').id;
+  const isMobile = window.innerWidth < 900;
+  if (id === 'tab-overview' || id === 'tab-trends') {
+    renderChart('mini-chart1', 'chart1', isMobile?220:260, 180);
+    renderChart('chart1-full', 'chart1', isMobile?240:300, 220);
+  }
+  if (id === 'tab-overview' || id === 'tab-heatmap') {
+    renderChart('mini-chart5', 'chart5', 'container', 240);
+    renderChart('chart5-full', 'chart5', 'container', 320);
+  }
+  if (id === 'tab-gender')  renderChart('chart2-full', 'chart2', 'container', 400);
+  if (id === 'tab-obesity') renderChart('chart3-full', 'chart3', isMobile?260:370, 480);
+  if (id === 'tab-scatter') renderChart('chart4-full', 'chart4', 'container', 460);
+  if (id === 'tab-map')     renderChart('chart6-full', 'chart6', 'container', 500);
+}
+
+renderCharts();
+
+let rTimeout;
+window.addEventListener('r
