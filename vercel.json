@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/CST4245_Dashboard.html"
+    }
+  ]
+}
